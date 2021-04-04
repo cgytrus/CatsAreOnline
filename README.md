@@ -19,7 +19,7 @@ by drag-and-dropping the folder from the downloaded archive into the game's fold
 ### Hosting a server
 1. Forward the required port (1337 by default)
 2. Download the [server](https://github.com/cgytrus/CatsAreOnline/releases)
-3. Run start.bat
+3. Run CatsAreOnlineServer.exe through Powershell or cmd if you're on Windows or CatsAreOnlineServer through a terminal if you're on Linux
 
 ## Contributing
 1. Clone the repository
