@@ -36,3 +36,5 @@ by drag-and-dropping the folder from the downloaded archive into the game's fold
 - server list?
 - permission system?
 - server commands without having to open the client and join the server (aka server console)
+- ice size sync
+- fix a bug where the ice sprite doesn't go away???? huh??
