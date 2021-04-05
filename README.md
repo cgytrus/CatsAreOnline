@@ -19,7 +19,7 @@ by drag-and-dropping the folder from the downloaded archive into the game's fold
 ### Hosting a server
 1. Forward the required port (1337 by default)
 2. Download the [server](https://github.com/cgytrus/CatsAreOnline/releases)
-3. Run CatsAreOnlineServer.exe through Powershell or cmd if you're on Windows or CatsAreOnlineServer through a terminal if you're on Linux
+3. Run CatsAreOnlineServer.exe through Powershell or cmd if you're on Windows or CatsAreOnlineServer through terminal if you're on Linux
 
 ## Contributing
 1. Clone the repository
@@ -36,5 +36,4 @@ by drag-and-dropping the folder from the downloaded archive into the game's fold
 - server list?
 - permission system?
 - server commands without having to open the client and join the server (aka server console)
-- ice size sync
-- fix a bug where the ice sprite doesn't go away???? huh??
+- fix a bug where the ice sprite doesn't go away sometimes???? huh??

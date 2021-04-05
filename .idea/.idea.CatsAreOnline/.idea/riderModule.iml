@@ -1,13 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <module type="RIDER_MODULE" version="4">
   <component name="NewModuleRootManager">
-    <content url="file://$MODULE_DIR$/../..">
-      <excludeFolder url="file://$MODULE_DIR$/../../CatsAreOnline/bin" />
-      <excludeFolder url="file://$MODULE_DIR$/../../CatsAreOnline/obj" />
-      <excludeFolder url="file://$MODULE_DIR$/../../CatsAreOnlineServer/bin" />
-      <excludeFolder url="file://$MODULE_DIR$/../../CatsAreOnlineServer/obj" />
-      <excludeFolder url="file://$MODULE_DIR$/../../packages" />
-    </content>
+    <content url="file://$MODULE_DIR$/../.." />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>

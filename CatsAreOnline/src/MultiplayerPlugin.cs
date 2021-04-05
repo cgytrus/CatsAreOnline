@@ -21,7 +21,7 @@ using CatControls = CaLAPI.API.Cat.CatControls;
 using CatPartManager = CaLAPI.API.Cat.CatPartManager;
 
 namespace CatsAreOnline {
-    [BepInPlugin("mod.cgytrus.plugin.calOnline", "Cats are Online", "0.2.2")]
+    [BepInPlugin("mod.cgytrus.plugin.calOnline", "Cats are Online", "0.2.3")]
     [BepInDependency("mod.cgytrus.plugins.calapi", "0.1.4")]
     public class MultiplayerPlugin : BaseUnityPlugin {
         public static ConfigEntry<bool> connected;
@@ -47,6 +47,7 @@ namespace CatsAreOnline {
             Harmony.CreateAndPatchAll(typeof(IceRotationUpdates));
             Harmony.CreateAndPatchAll(typeof(ChatControlBlock));
             Harmony.CreateAndPatchAll(typeof(PipeColorUpdate));
+            Harmony.CreateAndPatchAll(typeof(CurrentIceUpdates));
             
             connected = Config.Bind("General", "Connected", false, "");
             _username = Config.Bind("General", "Username", "", "Your internal name");
@@ -190,9 +191,12 @@ namespace CatsAreOnline {
             Client.state.movementCatState = _state;
             Client.state.position = Client.currentCatPosition;
             if(!Client.playerControls) return;
-            bool ice = Client.playerControls.IsCatIceActive();
+            bool ice = CurrentIceUpdates.currentIce;
             Client.state.ice = ice;
-            if(ice) Client.state.color = Client.iceColor;
+            if(ice) {
+                Client.state.color = Client.iceColor;
+                Client.state.scale = CurrentIceUpdates.currentIce.Size.y * 3.5f;
+            }
             
             if(_update) Client.SendStateDeltaToServer(Client.state);
             _update = !_update;

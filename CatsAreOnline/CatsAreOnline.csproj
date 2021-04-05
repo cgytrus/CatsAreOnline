@@ -112,6 +112,7 @@
         <Compile Include="src\DataType.cs" />
         <Compile Include="src\NetBufferExtensions.cs" />
         <Compile Include="src\Patches\ChatControlBlock.cs" />
+        <Compile Include="src\Patches\CurrentIceUpdates.cs" />
         <Compile Include="src\Patches\PipeColorUpdate.cs" />
         <Compile Include="src\Player.cs" />
         <Compile Include="src\MultiplayerPlugin.cs" />

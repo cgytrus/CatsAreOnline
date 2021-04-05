@@ -43,7 +43,6 @@ namespace CatsAreOnline {
         public void SetIce(bool ice) {
             state.ice = ice;
             renderer.sprite = ice ? Client.iceSprite : Client.catSprite;
-            transform.localScale = ice ? new Vector3(3.5f, 3.5f, 1f) : Vector3.one * state.scale;
             if(!ice) transform.eulerAngles = Vector3.zero;
         }
 
