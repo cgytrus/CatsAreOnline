@@ -1,4 +1,4 @@
-﻿# Cats are Online
+# Cats are Online
 A multiplayer mod for the game [Cats are Liquid: A Better Place](https://store.steampowered.com/app/1188080)
 
 ## Installation
@@ -7,14 +7,15 @@ A multiplayer mod for the game [Cats are Liquid: A Better Place](https://store.s
 2. Install [Configuration Manager](https://github.com/BepInEx/BepInEx.ConfigurationManager/releases/latest)
 by drag-and-dropping the folder from the downloaded archive into the game's folder
 3. Install [Cats are Online](https://github.com/cgytrus/CatsAreOnline/releases) the same way as Configuration Manager
-4. Open the game and press F1 when you get to the main menu
-5. Open the "Cats are Online" category
-6. Change the Username and Display Name options to whatever you like (you can use [Rich Text](https://docs.unity3d.com/Packages/com.unity.ugui@1.0/manual/StyledText.html),
+4. Install [Cats are Liquid API](https://github.com/cgytrus/CatsAreOnline/releases) the same way as Configuration Manager **(this *has* to be done after step 3, or you won't get the updated CaLAPI.dll)**
+5. Open the game and press F1 when you get to the main menu
+6. Open the "Cats are Online" category
+7. Change the Username and Display Name options to whatever you like (you can use [Rich Text](https://docs.unity3d.com/Packages/com.unity.ugui@1.0/manual/StyledText.html),
    however, keep in mind that username is the name that people use in commands, so if you use rich text in your username,
    it'll be hard if even possible to type, so don't use rich text in usernames please)
-7. Change the Address option to the address of the server you're connecting to, I usually host the server sometimes on `93.123.252.235:1337`
-8. Enable the Connected option
-9. Press T to chat, type /help in chat for a list of available commands
+8. Change the Address option to the address of the server you're connecting to, I usually host the server sometimes on `93.123.252.235:1337`
+9. Enable the Connected option
+10. Press T to chat, type /help in chat for a list of available commands
 
 ### Hosting a server
 1. Forward the required port (1337 by default)
