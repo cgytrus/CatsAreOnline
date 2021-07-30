@@ -13,8 +13,8 @@ namespace CatsAreOnline.Chat {
     public static class Chat {
         public static int messagesCapacity { get; set; } = 10;
         public static int historyCapacity { get; set; } = 100;
-        public static List<Message> messages = new List<Message>(messagesCapacity);
-        public static List<string> history = new List<string>(historyCapacity);
+        public static readonly List<Message> messages = new List<Message>(messagesCapacity);
+        public static readonly List<string> history = new List<string>(historyCapacity);
 
         public static float fadeOutDelay { get; set; }
 
@@ -34,7 +34,11 @@ namespace CatsAreOnline.Chat {
         private static InputField _inputField;
         private static GameObject _fieldBackground;
 
-        public static void Initialize() {
+        private static Client _client;
+
+        public static void Initialize(Client client) {
+            _client = client;
+            
             #region Canvas creation
 
             GameObject canvasObject = new GameObject("Chat UI Canvas") { layer = LayerMask.NameToLayer("UI") };
@@ -169,9 +173,9 @@ namespace CatsAreOnline.Chat {
                     string[] args = new string[fullCommand.Length - 1];
                     Array.Copy(fullCommand, 1, args, 0, args.Length);
                     
-                    Client.ExecuteCommand(command, args);
+                    _client.ExecuteCommand(command, args);
                 }
-                else Client.SendChatMessage(text);
+                else _client.SendChatMessage(text);
             }
             _inputField.text = null;
             chatFocused = false;

@@ -8,36 +8,40 @@ using CaLAPI.API.Cat;
 using UnityEngine;
 
 namespace CatsAreOnline {
-    public static class Commands {
-        public static void Initialize() {
-            Client.commandRegistry.Add("help", new Command(HelpCommand, "Prints this message. [INT] - page"));
+    public class Commands {
+        private Client _client;
+        
+        public void Initialize(Client client) {
+            _client = client;
             
-            Client.commandRegistry.Add("debug", new Command(DebugCommand, "Prints some server and client debug info"));
+            _client.commandRegistry.Add("help", new Command(HelpCommand, "Prints this message. [INT] - page"));
             
-            Client.commandRegistry.Add("players", new Command(PlayersCommand, "Prints online players. [INT] - page"));
-            Client.commandRegistry.Add("list", Client.commandRegistry["players"]);
+            _client.commandRegistry.Add("debug", new Command(DebugCommand, "Prints some server and client debug info"));
             
-            Client.commandRegistry.Add("servers", new Command(ServersCommand, "nvm"));
-            Client.commandRegistry.Add("discover", Client.commandRegistry["servers"]);
+            _client.commandRegistry.Add("players", new Command(PlayersCommand, "Prints online players. [INT] - page"));
+            _client.commandRegistry.Add("list", _client.commandRegistry["players"]);
             
-            Client.commandRegistry.Add("info", new Command(InfoCommand, "Prints some info about the server"));
-            Client.commandRegistry.Add("server", Client.commandRegistry["info"]);
+            _client.commandRegistry.Add("servers", new Command(ServersCommand, "nvm"));
+            _client.commandRegistry.Add("discover", _client.commandRegistry["servers"]);
             
-            Client.commandRegistry.Add("teleport",
+            _client.commandRegistry.Add("info", new Command(InfoCommand, "Prints some info about the server"));
+            _client.commandRegistry.Add("server", _client.commandRegistry["info"]);
+            
+            _client.commandRegistry.Add("teleport",
                 new Command(TeleportCommand,
                     "Teleports you to a specified location. FLOAT - x coord, FLOAT - y coord | STRING - player's username to teleport to"));
-            Client.commandRegistry.Add("tp", Client.commandRegistry["teleport"]);
+            _client.commandRegistry.Add("tp", _client.commandRegistry["teleport"]);
             
-            Client.commandRegistry.Add("spectate",
+            _client.commandRegistry.Add("spectate",
                 new Command(SpectateCommand,
                     "Spectate a player in the same room. STRING - player's username to spectate"));
-            Client.commandRegistry.Add("spec", Client.commandRegistry["spectate"]);
+            _client.commandRegistry.Add("spec", _client.commandRegistry["spectate"]);
         }
 
-        private static void HelpCommand(params string[] args) {
+        private void HelpCommand(params string[] args) {
             Dictionary<Command, string> actualCommands = new Dictionary<Command, string>();
             Dictionary<string, string> commandAliases = new Dictionary<string, string>();
-            foreach(KeyValuePair<string, Command> command in Client.commandRegistry) {
+            foreach(KeyValuePair<string, Command> command in _client.commandRegistry) {
                 if(actualCommands.TryGetValue(command.Value, out string name)) commandAliases.Add(command.Key, name);
                 else actualCommands.Add(command.Value, command.Key);
             }
@@ -73,9 +77,9 @@ namespace CatsAreOnline {
             }
         }
 
-        private static void DebugCommand(params string[] args) {
-            if(args.Length == 0) Client.debug.enabled = !Client.debug.enabled;
-            else Client.debug.enabled = true;
+        private void DebugCommand(params string[] args) {
+            if(args.Length == 0) _client.debug.enabled = !_client.debug.enabled;
+            else _client.debug.enabled = true;
 
             ClientDebug.DataTypeFlag ToggleFlags(ClientDebug.DataTypeFlag current) =>
                 current == ClientDebug.DataTypeFlag.All ? ClientDebug.DataTypeFlag.None : ClientDebug.DataTypeFlag.All;
@@ -111,26 +115,26 @@ namespace CatsAreOnline {
                         switch(splitArg.Length) {
                             case 3:
                                 Chat.Chat.AddDebugMessage(
-                                    argType == "client" ? $"[CLIENT] {Client.debug.client.HasFlag(flag).ToString()}" :
-                                        $"[SERVER] {Client.debug.server.HasFlag(flag).ToString()}");
+                                    argType == "client" ? $"[CLIENT] {_client.debug.client.HasFlag(flag).ToString()}" :
+                                        $"[SERVER] {_client.debug.server.HasFlag(flag).ToString()}");
                                 break;
                             case 2:
-                                if(argType == "client") Client.debug.client ^= flag;
-                                else Client.debug.server ^= flag;
+                                if(argType == "client") _client.debug.client ^= flag;
+                                else _client.debug.server ^= flag;
                                 break;
                         }
                         break;
-                    case 1 when argType == "client": Client.debug.client = ToggleFlags(Client.debug.client);
+                    case 1 when argType == "client": _client.debug.client = ToggleFlags(_client.debug.client);
                         break;
-                    case 1: Client.debug.server = ToggleFlags(Client.debug.server);
+                    case 1: _client.debug.server = ToggleFlags(_client.debug.server);
                         break;
                 }
             }
         }
 
-        private static void PlayersCommand(params string[] args) {
+        private void PlayersCommand(params string[] args) {
             int pageCapacity = Chat.Chat.messagesCapacity - 2;
-            int totalPages = Client.playerRegistry.Count / pageCapacity + 1;
+            int totalPages = _client.playerRegistry.Count / pageCapacity + 1;
             
             int page = 1;
             bool printUsername = false;
@@ -147,12 +151,12 @@ namespace CatsAreOnline {
             
             Chat.Chat.AddMessage($"Page {page.ToString()}/{totalPages.ToString()}");
             int i = 0;
-            foreach(Player player in Client.playerRegistry.Values) {
+            foreach(Player player in _client.playerRegistry.Values) {
                 if(i < (page - 1) * pageCapacity) {
                     ++i;
                     continue;
                 }
-                if(i >= Mathf.Min(Client.playerRegistry.Count, pageCapacity)) break;
+                if(i >= Mathf.Min(_client.playerRegistry.Count, pageCapacity)) break;
                 
                 string displayName = $"{player.displayName} ";
                 string username = printUsername ? $"({player.username}) " : "";
@@ -164,12 +168,12 @@ namespace CatsAreOnline {
             }
         }
 
-        private static void ServersCommand(params string[] args) =>
+        private void ServersCommand(params string[] args) =>
             Chat.Chat.AddErrorMessage("This command is not yet implemented, sry :(");
 
-        private static void InfoCommand(params string[] args) => Client.SendServerCommand("info");
+        private void InfoCommand(params string[] args) => _client.SendServerCommand("info");
 
-        private static void TeleportCommand(params string[] args) {
+        private void TeleportCommand(params string[] args) {
             if(args.Length != 1 && args.Length != 2) {
                 string length = args.Length.ToString(CultureInfo.InvariantCulture);
                 Chat.Chat.AddErrorMessage($"Invalid argument count (<b>{length}</b>), should be <b>1</b> or <b>2</b>");
@@ -179,21 +183,21 @@ namespace CatsAreOnline {
             switch(args.Length) {
                 case 1:
                     Player player =
-                        (from ply in Client.playerRegistry where ply.Value.username == args[0] select ply.Value)
+                        (from ply in _client.playerRegistry where ply.Value.username == args[0] select ply.Value)
                         .FirstOrDefault();
                     if(player == null) {
                         Chat.Chat.AddErrorMessage($"Invalid argument <b>0</b> (player <b>{args[0]}</b> not found)");
                         return;
                     }
 
-                    if(player.state.room != Client.state.room) {
+                    if(player.state.room != _client.state.room) {
                         Chat.Chat.AddErrorMessage(
                             $"Invalid argument <b>0</b> (player <b>{args[0]}</b> is in a different room)");
                         return;
                     }
                     
-                    Client.playerPartManager.MoveCat(player.transform.position);
-                    Chat.Chat.AddMessage($"Teleported <b>{Client.displayName}</b> to <b>{player.displayName}</b>");
+                    _client.playerPartManager.MoveCat(player.transform.position);
+                    Chat.Chat.AddMessage($"Teleported <b>{_client.displayName}</b> to <b>{player.displayName}</b>");
                     break;
                 case 2:
                     if(!float.TryParse(args[0], out float x) || !float.TryParse(args[1], out float y)) {
@@ -201,46 +205,46 @@ namespace CatsAreOnline {
                         return;
                     }
                     Vector2 newPosition = new Vector2(x, y);
-                    Client.playerPartManager.MoveCat(newPosition);
-                    Chat.Chat.AddMessage($"Teleported <b>{Client.displayName}</b> to <b>{newPosition.ToString()}</b>");
+                    _client.playerPartManager.MoveCat(newPosition);
+                    Chat.Chat.AddMessage($"Teleported <b>{_client.displayName}</b> to <b>{newPosition.ToString()}</b>");
                     break;
             }
         }
         
-        private static void SpectateCommand(params string[] args) {
+        private void SpectateCommand(params string[] args) {
             Player player;
             switch(args.Length) {
                 case 0:
-                    player = Client.spectating;
+                    player = _client.spectating;
                     if(player == null) return;
 
                     FollowPlayer.followPlayerHead = player.restoreFollowPlayerHead;
                     FollowPlayer.customFollowTarget = player.restoreFollowTarget;
-                    Client.spectating = null;
+                    _client.spectating = null;
                     Chat.Chat.AddMessage($"Stopped spectating <b>{player.username}</b>");
 
                     break;
                 case 1:
                     player =
-                        (from ply in Client.playerRegistry where ply.Value.username == args[0] select ply.Value)
+                        (from ply in _client.playerRegistry where ply.Value.username == args[0] select ply.Value)
                         .FirstOrDefault();
                     if(player == null) {
                         Chat.Chat.AddErrorMessage($"Invalid argument <b>0</b> (player <b>{args[0]}</b> not found)");
                         return;
                     }
 
-                    if(player.username == Client.username) {
+                    if(player.username == _client.username) {
                         Chat.Chat.AddErrorMessage("Invalid argument <b>0</b> (can't spectate yourself)");
                         return;
                     }
 
-                    if(player.state.room != Client.state.room) {
+                    if(player.state.room != _client.state.room) {
                         Chat.Chat.AddErrorMessage(
                             $"Invalid argument <b>0</b> (player <b>{args[0]}</b> is in a different room)");
                         return;
                     }
 
-                    Client.spectating = player;
+                    _client.spectating = player;
                     player.restoreFollowPlayerHead = FollowPlayer.followPlayerHead;
                     player.restoreFollowTarget = FollowPlayer.customFollowTarget;
                     FollowPlayer.followPlayerHead = false;

@@ -13,7 +13,6 @@ namespace CatsAreOnline {
         
         public bool restoreFollowPlayerHead { get; set; }
         public Transform restoreFollowTarget { get; set; }
-
         public void SetPosition(Vector2 position) {
             state.position = position;
             if(isActiveAndEnabled) rigidbody.MovePosition(position);
@@ -22,15 +21,15 @@ namespace CatsAreOnline {
 
         public void SetRoom(string room, string currentClientRoom) {
             bool sameRoom = currentClientRoom == room && !string.IsNullOrEmpty(currentClientRoom);
-            bool own = !Client.displayOwnCat && username == Client.username;
+            bool own = !state.client.displayOwnCat && username == state.client.username;
             state.room = room;
             gameObject.SetActive(!own && sameRoom);
             nameTag.gameObject.SetActive(sameRoom);
-            collider.enabled = username != Client.username && Client.playerCollisions;
+            collider.enabled = username != state.client.username && state.client.playerCollisions;
             if(sameRoom || FollowPlayer.customFollowTarget != transform) return;
             FollowPlayer.followPlayerHead = restoreFollowPlayerHead;
             FollowPlayer.customFollowTarget = restoreFollowTarget;
-            Client.spectating = null;
+            state.client.spectating = null;
             Chat.Chat.AddMessage($"Stopped spectating <b>{username}</b> (room changed)");
         }
 
@@ -46,7 +45,7 @@ namespace CatsAreOnline {
 
         public void SetIce(bool ice) {
             state.ice = ice;
-            renderer.sprite = ice ? Client.iceSprite : Client.catSprite;
+            renderer.sprite = ice ? state.client.iceSprite : state.client.catSprite;
             if(!ice) transform.eulerAngles = Vector3.zero;
         }
 

@@ -11,18 +11,18 @@ using UnityEngine.UI;
 using Object = UnityEngine.Object;
 
 namespace CatsAreOnline {
-    public static class Client {
+    public class Client {
         public const NetDeliveryMethod GlobalDeliveryMethod = NetDeliveryMethod.UnreliableSequenced;
         public const NetDeliveryMethod LessReliableDeliveryMethod = NetDeliveryMethod.ReliableSequenced;
         public const NetDeliveryMethod ReliableDeliveryMethod = NetDeliveryMethod.ReliableOrdered;
         
-        public static CatPartManager playerPartManager { get; set; }
-        public static CatControls playerControls { get; set; }
-        public static Sprite catSprite { get; set; }
-        public static Sprite iceSprite { get; set; }
-        public static Color iceColor { get; set; }
+        public CatPartManager playerPartManager { get; set; }
+        public CatControls playerControls { get; set; }
+        public Sprite catSprite { get; set; }
+        public Sprite iceSprite { get; set; }
+        public Color iceColor { get; set; }
 
-        public static bool displayOwnCat {
+        public bool displayOwnCat {
             get => _displayOwnCat;
             set {
                 _displayOwnCat = value;
@@ -40,38 +40,39 @@ namespace CatsAreOnline {
             }
         }
 
-        public static RectTransform nameTags { get; set; }
-        public static Font nameTagFont { get; set; }
-        public static Camera nameTagCamera { get; set; }
+        public RectTransform nameTags { get; set; }
+        public Font nameTagFont { get; set; }
+        public Camera nameTagCamera { get; set; }
         
-        public static bool inJunction { get; set; }
-        public static Vector2 junctionPosition { get; set; }
+        public bool inJunction { get; set; }
+        public Vector2 junctionPosition { get; set; }
 
-        public static bool canConnect => playerPartManager && playerControls && catSprite && iceSprite && nameTags &&
+        public bool canConnect => playerPartManager && playerControls && catSprite && iceSprite && nameTags &&
                                          nameTagFont && nameTagCamera;
 
-        public static string username { get; private set; }
-        public static string displayName { get; private set; }
-        public static PlayerState state { get; } = new PlayerState();
-        public static Player spectating { get; set; }
+        public string username { get; private set; }
+        public string displayName { get; private set; }
+        public PlayerState state { get; } = new PlayerState();
+        public Player spectating { get; set; }
         
-        public static readonly Dictionary<string, Player> playerRegistry = new Dictionary<string, Player>();
-        public static readonly Dictionary<string, Command> commandRegistry = new Dictionary<string, Command>();
+        public readonly Dictionary<string, Player> playerRegistry = new Dictionary<string, Player>();
+        public readonly Dictionary<string, Command> commandRegistry = new Dictionary<string, Command>();
 
-        public static readonly ClientDebug debug = new ClientDebug();
+        public readonly ClientDebug debug = new ClientDebug();
 
-        private static string _guid;
+        private string _guid;
 
-        private static bool _displayOwnCat;
-        private static NetClient _client;
-        private static readonly Vector2 nameTagOffset = Vector2.up;
+        private bool _displayOwnCat;
+        private bool _playerCollisions;
+        private NetClient _client;
+        private readonly Vector2 _nameTagOffset = Vector2.up;
 
-        public static Vector2 currentCatPosition => inJunction ? junctionPosition :
+        public Vector2 currentCatPosition => inJunction ? junctionPosition :
             (FollowPlayer.customFollowTarget || Boiler.PlayerBoilerCounter > 0) && spectating == null ?
             (Vector2)FollowPlayer.LookAt.position :
             playerPartManager ? (Vector2)playerPartManager.GetCatCenter() : Vector2.zero;
 
-        public static void Initialize() {
+        public void Initialize() {
             NetPeerConfiguration config = new NetPeerConfiguration("mod.cgytrus.plugin.calOnline");
             
             config.DisableMessageType(NetIncomingMessageType.Receipt);
@@ -88,21 +89,21 @@ namespace CatsAreOnline {
             _client.Start();
         }
 
-        public static void Connect(string ip, int port, string username, string displayName) {
+        public void Connect(string ip, int port, string username, string displayName) {
             if(_client.ConnectionStatus == NetConnectionStatus.Connected) Disconnect();
                 
-            Client.username = string.IsNullOrWhiteSpace(username) ? "<Unknown>" : username;
-            Client.displayName = string.IsNullOrWhiteSpace(displayName) ? username : displayName;
+            this.username = string.IsNullOrWhiteSpace(username) ? "<Unknown>" : username;
+            this.displayName = string.IsNullOrWhiteSpace(displayName) ? username : displayName;
             
             _client.Connect(ip, port);
         }
 
-        public static void Disconnect() {
+        public void Disconnect() {
             if(_client.ConnectionStatus == NetConnectionStatus.Connected)
                 _client.Disconnect("User disconnected");
         }
 
-        public static void Update() {
+        public void Update() {
             NetIncomingMessage message;
             while((message = _client.ReadMessage()) != null) {
                 MessageReceived(message);
@@ -110,12 +111,12 @@ namespace CatsAreOnline {
             }
         }
 
-        public static void UpdateAllNameTagsPositions() {
+        public void UpdateAllNameTagsPositions() {
             foreach(KeyValuePair<string, Player> player in playerRegistry)
                 UpdateNameTagPosition(player.Value);
         }
 
-        public static void SendChatMessage(string text) {
+        public void SendChatMessage(string text) {
             if(_client.ConnectionStatus != NetConnectionStatus.Connected) return;
             
             NetOutgoingMessage message = _client.CreateMessage();
@@ -125,7 +126,7 @@ namespace CatsAreOnline {
             SendMessageToServer(message, ReliableDeliveryMethod);
         }
 
-        public static void SendServerCommand(string command, params string[] args) {
+        public void SendServerCommand(string command, params string[] args) {
             if(_client.ConnectionStatus != NetConnectionStatus.Connected) {
                 Chat.Chat.AddErrorMessage("Not connected to a server");
                 return;
@@ -140,7 +141,7 @@ namespace CatsAreOnline {
             SendMessageToServer(message, ReliableDeliveryMethod);
         }
 
-        public static void ExecuteCommand(string command, params string[] args) {
+        public void ExecuteCommand(string command, params string[] args) {
             Chat.Chat.AddMessage($"<color=blue><b>COMMAND:</b> {command} {string.Join(" ", args)}</color>");
             if(commandRegistry.TryGetValue(command, out Command action)) {
                 try {
@@ -160,7 +161,7 @@ namespace CatsAreOnline {
             }
         }
 
-        public static void SendStateDeltaToServer(PlayerState state) {
+        public void SendStateDeltaToServer(PlayerState state) {
             if(_client.ConnectionStatus != NetConnectionStatus.Connected || !state.anythingChanged) return;
 
             NetOutgoingMessage message = PrepareMessage(DataType.PlayerChangedState);
@@ -168,13 +169,13 @@ namespace CatsAreOnline {
             SendMessageToServer(message, state.deliveryMethod);
         }
 
-        public static void RoomChanged() {
+        public void RoomChanged() {
             foreach(KeyValuePair<string, Player> player in playerRegistry) {
                 player.Value.SetRoom(player.Value.state.room, state.room);
             }
         }
 
-        private static void MessageReceived(NetIncomingMessage message) {
+        private void MessageReceived(NetIncomingMessage message) {
             switch(message.MessageType) {
                 case NetIncomingMessageType.Data:
                     DataMessageReceived(message);
@@ -195,7 +196,7 @@ namespace CatsAreOnline {
             }
         }
 
-        private static void StatusChangedMessageReceived(NetIncomingMessage message) {
+        private void StatusChangedMessageReceived(NetIncomingMessage message) {
             NetConnectionStatus status = (NetConnectionStatus)message.ReadByte();
             switch(status) {
                 case NetConnectionStatus.Connected:
@@ -210,7 +211,7 @@ namespace CatsAreOnline {
             }
         }
         
-        private static void Connected() {
+        private void Connected() {
             Debug.Log("[CaO] Connected to the server");
             NetOutgoingMessage message = _client.CreateMessage();
             message.Write((byte)DataType.RegisterPlayer);
@@ -221,7 +222,7 @@ namespace CatsAreOnline {
             SendMessageToServer(message, ReliableDeliveryMethod);
         }
         
-        private static void Disconnected(string reason) {
+        private void Disconnected(string reason) {
             Debug.Log("[CaO] Disconnected from the server");
             MultiplayerPlugin.connected.Value = false;
             _guid = null;
@@ -230,7 +231,7 @@ namespace CatsAreOnline {
             Chat.Chat.AddMessage($"Disconnected from the server ({reason})");
         }
 
-        private static void DataMessageReceived(NetBuffer message) {
+        private void DataMessageReceived(NetBuffer message) {
             DataType type = (DataType)message.ReadByte();
             
             debug.PrintServer(type);
@@ -257,7 +258,7 @@ namespace CatsAreOnline {
             }
         }
 
-        private static void RegisterPlayerReceived(NetBuffer message) {
+        private void RegisterPlayerReceived(NetBuffer message) {
             _guid = message.ReadString();
             int count = message.ReadInt32();
             for(int i = 0; i < count; ++i) {
@@ -267,14 +268,14 @@ namespace CatsAreOnline {
             }
         }
 
-        private static void PlayerJoinedReceived(NetBuffer message) {
+        private void PlayerJoinedReceived(NetBuffer message) {
             Player player = SpawnPlayer(message);
             Debug.Log($"[CaO] Registering player {player.username}");
             playerRegistry.Add(player.username, player);
             Chat.Chat.AddMessage($"Player {player.displayName} joined");
         }
         
-        private static void PlayerLeftReceived(NetBuffer message) {
+        private void PlayerLeftReceived(NetBuffer message) {
             string username = message.ReadString();
             
             Debug.Log($"[CaO] Player {playerRegistry[username].username} left");
@@ -284,7 +285,7 @@ namespace CatsAreOnline {
             playerRegistry.Remove(username);
         }
         
-        private static void PlayerChangedStateReceived(NetBuffer message) {
+        private void PlayerChangedStateReceived(NetBuffer message) {
             string username = message.ReadString();
             Player player = playerRegistry[username];
             while(message.ReadByte(out byte stateTypeByte)) {
@@ -312,7 +313,7 @@ namespace CatsAreOnline {
             }
         }
 
-        private static void ChatMessageReceived(NetBuffer message) {
+        private void ChatMessageReceived(NetBuffer message) {
             string username = message.ReadString();
             
             Player player = playerRegistry[username];
@@ -322,11 +323,11 @@ namespace CatsAreOnline {
             Chat.Chat.AddMessage($"[{player.displayName}] {text}");
         }
         
-        private static Player SpawnPlayer(NetBuffer message) => SpawnPlayer(message.ReadString(), message.ReadString(),
+        private Player SpawnPlayer(NetBuffer message) => SpawnPlayer(message.ReadString(), message.ReadString(),
             message.ReadVector2(), message.ReadString(), message.ReadColor(), message.ReadFloat(),
             message.ReadBoolean(), message.ReadFloat());
 
-        private static Player SpawnPlayer(string username, string displayName, Vector2 position, string room,
+        private Player SpawnPlayer(string username, string displayName, Vector2 position, string room,
             Color color, float scale, bool ice, float iceRotation) {
             GameObject obj = new GameObject($"OnlinePlayer_{username}") { layer = 0 };
             Object.DontDestroyOnLoad(obj);
@@ -343,6 +344,7 @@ namespace CatsAreOnline {
             collider.radius = 0.4f;
             
             Player player = obj.AddComponent<Player>();
+            player.state.client = this;
             player.username = username;
             player.displayName = displayName;
             player.nameTag = CreatePlayerNameTag(username, displayName);
@@ -360,7 +362,7 @@ namespace CatsAreOnline {
             return player;
         }
 
-        private static Text CreatePlayerNameTag(string username, string displayName) {
+        private Text CreatePlayerNameTag(string username, string displayName) {
             GameObject nameTag = new GameObject($"OnlinePlayerNameTag_{username}") {
                 layer = LayerMask.NameToLayer("UI")
             };
@@ -384,7 +386,7 @@ namespace CatsAreOnline {
             return nameTagText;
         }
 
-        private static void UpdateNameTagPosition(Player player) {
+        private void UpdateNameTagPosition(Player player) {
             Vector3 playerPos = player.transform.position;
             
             Text nameTag = player.nameTag;
@@ -401,11 +403,11 @@ namespace CatsAreOnline {
                                 
             float scale = player.state.scale;
             nameTag.rectTransform.anchoredPosition =
-                new Vector2(Mathf.Clamp(playerPos.x + nameTagOffset.x * scale, minX, maxX),
-                    Mathf.Clamp(playerPos.y + nameTagOffset.y * scale, minY, maxY));
+                new Vector2(Mathf.Clamp(playerPos.x + _nameTagOffset.x * scale, minX, maxX),
+                    Mathf.Clamp(playerPos.y + _nameTagOffset.y * scale, minY, maxY));
         }
 
-        private static void RemovePlayer(Player player) {
+        private void RemovePlayer(Player player) {
             if(spectating == player) {
                 spectating = null;
                 Chat.Chat.AddMessage($"Stopped spectating <b>{player.username}</b> (player left)");
@@ -414,14 +416,14 @@ namespace CatsAreOnline {
             Object.Destroy(player.gameObject);
         }
 
-        private static NetOutgoingMessage PrepareMessage(DataType type) {
+        private NetOutgoingMessage PrepareMessage(DataType type) {
             NetOutgoingMessage message = _client.CreateMessage();
             message.Write((byte)type);
             message.Write(_guid);
             return message;
         }
 
-        private static void SendMessageToServer(NetOutgoingMessage message, NetDeliveryMethod method) {
+        private void SendMessageToServer(NetOutgoingMessage message, NetDeliveryMethod method) {
             debug.PrintClient(message);
             _client.SendMessage(message, method);
         }

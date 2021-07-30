@@ -16,6 +16,8 @@ namespace CatsAreOnline {
             Ice,
             IceRotation
         }
+
+        public Client client { get; set; }
         
         public State movementCatState { get; set; }
 
@@ -37,7 +39,7 @@ namespace CatsAreOnline {
                 if(_room != value) {
                     _roomChanged = true;
                     anythingChanged = true;
-                    Client.RoomChanged();
+                    client.RoomChanged();
                 }
                 _room = value;
             }

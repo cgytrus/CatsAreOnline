@@ -38,6 +38,9 @@ namespace CatsAreOnline {
         private ConfigEntry<float> _messageFadeOutDelay;
         private ConfigEntry<float> _messageFadeOutSpeed;
 
+        private Client _client;
+        private Commands _commands;
+
         private State _state;
         private float _scale;
         private Color _color;
@@ -69,19 +72,24 @@ namespace CatsAreOnline {
 
             connected.Value = false;
 
-            Client.Initialize();
-            Commands.Initialize();
+            _client = new Client();
+            _client.Initialize();
+            PatchesClientProvider.client = _client;
+
+            _commands = new Commands();
+            _commands.Initialize(_client);
+            
             _state = State.Normal;
             _scale = Client.GetScaleFromCatState(_state);
             connected.SettingChanged += (_, __) => {
                 if(!SetConnected(connected.Value)) connected.Value = false;
             };
 
-            Client.displayOwnCat = _displayOwnCat.Value;
-            _displayOwnCat.SettingChanged += (_, __) => Client.displayOwnCat = _displayOwnCat.Value;
+            _client.displayOwnCat = _displayOwnCat.Value;
+            _displayOwnCat.SettingChanged += (_, __) => _client.displayOwnCat = _displayOwnCat.Value;
 
-            Client.playerCollisions = _playerCollisions.Value;
-            _playerCollisions.SettingChanged += (_, __) => Client.playerCollisions = _playerCollisions.Value;
+            _client.playerCollisions = _playerCollisions.Value;
+            _playerCollisions.SettingChanged += (_, __) => _client.playerCollisions = _playerCollisions.Value;
 
             Chat.Chat.messagesCapacity = _chatCapacity.Value;
             _chatCapacity.SettingChanged += (_, __) => Chat.Chat.messagesCapacity = _chatCapacity.Value;
@@ -100,8 +108,8 @@ namespace CatsAreOnline {
                 
                 if(!partManager.GetComponent<PlayerActor>()) return;
                 
-                Client.catSprite = args.noMetaballsPartTexture;
-                Client.playerPartManager = partManager;
+                _client.catSprite = args.noMetaballsPartTexture;
+                _client.playerPartManager = partManager;
             };
 
             CatControls.awake += (caller, _) => {
@@ -114,9 +122,9 @@ namespace CatsAreOnline {
                 SpriteRenderer catIceMainRenderer = (SpriteRenderer)AccessTools.Field(typeof(IceBlock), "mainSprite")
                     .GetValue(catIcePrefab.GetComponent<IceBlock>());
 
-                Client.iceSprite = catIceMainRenderer.sprite;
-                Client.iceColor = catIceMainRenderer.color;
-                Client.playerControls = controls;
+                _client.iceSprite = catIceMainRenderer.sprite;
+                _client.iceColor = catIceMainRenderer.color;
+                _client.playerControls = controls;
 
                 controls.StateSwitchAction += state => {
                     _state = (State)state;
@@ -125,15 +133,15 @@ namespace CatsAreOnline {
             };
 
             CaLAPI.API.PauseScreen.roomInfoUpdated += (_, args) => {
-                Client.state.room = args.newRoom;
+                _client.state.room = args.newRoom;
             };
 
             PauseScreen.pauseScreenExitAction += () => {
-                Client.state.room = null;
+                _client.state.room = null;
             };
 
             CaLAPI.API.CanvasManager.awake += (_, args) => {
-                Client.nameTagCamera = Camera.main;
+                _client.nameTagCamera = Camera.main;
                 GameObject nameTags = new GameObject("Name Tags") { layer = LayerMask.NameToLayer("UI") };
                 DontDestroyOnLoad(nameTags);
 
@@ -143,14 +151,14 @@ namespace CatsAreOnline {
 
                 Canvas canvas = nameTags.AddComponent<Canvas>();
                 canvas.renderMode = RenderMode.WorldSpace;
-                canvas.worldCamera = Client.nameTagCamera;
+                canvas.worldCamera = _client.nameTagCamera;
                 canvas.scaleFactor = 720f;
 
-                Client.nameTags = nameTagsTransform;
+                _client.nameTags = nameTagsTransform;
             };
 
             Writer.awake += (_, args) => {
-                Client.nameTagFont = args.font;
+                _client.nameTagFont = args.font;
                 Message.font = args.font;
             };
 
@@ -163,24 +171,24 @@ namespace CatsAreOnline {
             };
 
             UI.initialized += (_, __) => {
-                Chat.Chat.Initialize();
+                Chat.Chat.Initialize(_client);
             };
         }
 
         private bool SetConnected(bool connected) {
             if(connected) {
-                if(!Client.canConnect) return false;
+                if(!_client.canConnect) return false;
                 (string ip, int port) = ParseIp(_address.Value);
-                Client.Connect(ip, port, _username.Value, _displayName.Value);
+                _client.Connect(ip, port, _username.Value, _displayName.Value);
             }
-            else Client.Disconnect();
+            else _client.Disconnect();
 
             return true;
         }
 
         private void Update() {
-            Client.Update();
-            Client.UpdateAllNameTagsPositions();
+            _client.Update();
+            _client.UpdateAllNameTagsPositions();
 
             if(_toggleChat.Value.IsDown()) Chat.Chat.chatFocused = true;
             Chat.Chat.UpdateMessagesFadeOut();
@@ -188,22 +196,22 @@ namespace CatsAreOnline {
         }
 
         private void FixedUpdate() {
-            if(Pipe.catInPipe) Client.state.scale = Client.GetScaleFromCatState(State.Liquid);
+            if(Pipe.catInPipe) _client.state.scale = Client.GetScaleFromCatState(State.Liquid);
             else {
-                Client.state.scale = _scale;
-                Client.state.color = _color;
+                _client.state.scale = _scale;
+                _client.state.color = _color;
             }
-            Client.state.movementCatState = _state;
-            Client.state.position = Client.currentCatPosition;
-            if(!Client.playerControls) return;
+            _client.state.movementCatState = _state;
+            _client.state.position = _client.currentCatPosition;
+            if(!_client.playerControls) return;
             bool ice = CurrentIceUpdates.currentIce;
-            Client.state.ice = ice;
+            _client.state.ice = ice;
             if(ice) {
-                Client.state.color = Client.iceColor;
-                Client.state.scale = CurrentIceUpdates.currentIce.Size.y * 3.5f;
+                _client.state.color = _client.iceColor;
+                _client.state.scale = CurrentIceUpdates.currentIce.Size.y * 3.5f;
             }
             
-            if(_update) Client.SendStateDeltaToServer(Client.state);
+            if(_update) _client.SendStateDeltaToServer(_client.state);
             _update = !_update;
     }
 
