@@ -31,6 +31,15 @@ namespace CatsAreOnline {
             }
         }
 
+        public bool playerCollisions {
+            get => _playerCollisions;
+            set {
+                _playerCollisions = value;
+                foreach(Player player in playerRegistry.Values)
+                    player.collider.enabled = player.username != username && _playerCollisions;
+            }
+        }
+
         public static RectTransform nameTags { get; set; }
         public static Font nameTagFont { get; set; }
         public static Camera nameTagCamera { get; set; }
@@ -324,12 +333,22 @@ namespace CatsAreOnline {
 
             SpriteRenderer renderer = obj.AddComponent<SpriteRenderer>();
             renderer.sortingOrder = -50;
+
+            Rigidbody2D rigidbody = obj.AddComponent<Rigidbody2D>();
+            rigidbody.bodyType = RigidbodyType2D.Kinematic;
+            rigidbody.interpolation = RigidbodyInterpolation2D.Extrapolate;
+            rigidbody.useFullKinematicContacts = true;
+
+            CircleCollider2D collider = obj.AddComponent<CircleCollider2D>();
+            collider.radius = 0.4f;
             
             Player player = obj.AddComponent<Player>();
             player.username = username;
             player.displayName = displayName;
             player.nameTag = CreatePlayerNameTag(username, displayName);
             player.renderer = renderer;
+            player.rigidbody = rigidbody;
+            player.collider = collider;
             
             player.SetPosition(position);
             player.SetRoom(room, state.room);

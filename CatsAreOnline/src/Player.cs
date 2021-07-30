@@ -3,18 +3,21 @@ using UnityEngine.UI;
 
 namespace CatsAreOnline {
     public class Player : MonoBehaviour {
-        public string username;
-        public string displayName;
-        public Text nameTag;
-        public SpriteRenderer renderer;
+        public string username { get; set; }
+        public string displayName { get; set; }
+        public Text nameTag { get; set; }
+        public SpriteRenderer renderer { get; set; }
+        public Rigidbody2D rigidbody { get; set; }
+        public CircleCollider2D collider { get; set; }
         public PlayerState state { get; } = new PlayerState();
+        
         public bool restoreFollowPlayerHead { get; set; }
-
         public Transform restoreFollowTarget { get; set; }
 
         public void SetPosition(Vector2 position) {
             state.position = position;
-            transform.position = position;
+            if(isActiveAndEnabled) rigidbody.MovePosition(position);
+            else transform.position = position;
         }
 
         public void SetRoom(string room, string currentClientRoom) {
@@ -23,6 +26,7 @@ namespace CatsAreOnline {
             state.room = room;
             gameObject.SetActive(!own && sameRoom);
             nameTag.gameObject.SetActive(sameRoom);
+            collider.enabled = username != Client.username && Client.playerCollisions;
             if(sameRoom || FollowPlayer.customFollowTarget != transform) return;
             FollowPlayer.followPlayerHead = restoreFollowPlayerHead;
             FollowPlayer.customFollowTarget = restoreFollowTarget;
@@ -50,10 +54,13 @@ namespace CatsAreOnline {
             if(!state.ice) return;
 
             state.iceRotation = iceRotation;
-            Transform transform = this.transform;
-            Vector3 currentRot = transform.eulerAngles;
-            currentRot.z = iceRotation;
-            transform.eulerAngles = currentRot;
+            if(isActiveAndEnabled) rigidbody.MoveRotation(iceRotation);
+            else {
+                Transform transform = this.transform;
+                Vector3 currentRot = transform.eulerAngles;
+                currentRot.z = iceRotation;
+                transform.eulerAngles = currentRot;
+            }
         }
     }
 }

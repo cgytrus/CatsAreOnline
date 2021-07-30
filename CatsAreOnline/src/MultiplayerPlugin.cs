@@ -29,6 +29,7 @@ namespace CatsAreOnline {
         private ConfigEntry<string> _displayName;
         private ConfigEntry<string> _address;
         private ConfigEntry<bool> _displayOwnCat;
+        private ConfigEntry<bool> _playerCollisions;
         private ConfigEntry<KeyboardShortcut> _toggleChat;
         private ConfigEntry<int> _chatCapacity;
         private ConfigEntry<int> _historyCapacity;
@@ -55,6 +56,7 @@ namespace CatsAreOnline {
                 "Your name that will be displayed to other players");
             _address = Config.Bind("General", "Address", "127.0.0.1:1337", "");
             _displayOwnCat = Config.Bind("General", "Display Own Cat", false, "");
+            _playerCollisions = Config.Bind("General", "Player Collisions", false, "[EXPERIMENTAL]");
             _toggleChat = Config.Bind("General", "Toggle Chat Button", new KeyboardShortcut(KeyCode.T), "");
             _chatCapacity = Config.Bind("Chat", "Chat Capacity", 10,
                 "Maximum amount of chat messages that can be displayed at the same time");
@@ -77,6 +79,9 @@ namespace CatsAreOnline {
 
             Client.displayOwnCat = _displayOwnCat.Value;
             _displayOwnCat.SettingChanged += (_, __) => Client.displayOwnCat = _displayOwnCat.Value;
+
+            Client.playerCollisions = _playerCollisions.Value;
+            _playerCollisions.SettingChanged += (_, __) => Client.playerCollisions = _playerCollisions.Value;
 
             Chat.Chat.messagesCapacity = _chatCapacity.Value;
             _chatCapacity.SettingChanged += (_, __) => Chat.Chat.messagesCapacity = _chatCapacity.Value;
