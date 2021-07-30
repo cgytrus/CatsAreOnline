@@ -1,6 +1,4 @@
-﻿using System;
-
-using Lidgren.Network;
+﻿using Lidgren.Network;
 
 namespace CatsAreOnlineServer {
     public static class NetBufferExtensions {
