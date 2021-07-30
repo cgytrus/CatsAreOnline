@@ -32,7 +32,7 @@
         <WarningLevel>4</WarningLevel>
     </PropertyGroup>
     <ItemGroup>
-        <Reference Include="0Harmony, Version=2.3.0.0, Culture=neutral, PublicKeyToken=null">
+        <Reference Include="0Harmony, Version=2.4.2.0, Culture=neutral, PublicKeyToken=null">
           <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\BepInEx\core\0Harmony.dll</HintPath>
           <Private>False</Private>
         </Reference>
@@ -40,7 +40,7 @@
           <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\CaL-ABP-Windows_Data\Managed\Assembly-CSharp.dll</HintPath>
           <Private>False</Private>
         </Reference>
-        <Reference Include="BepInEx, Version=5.4.5.0, Culture=neutral, PublicKeyToken=null">
+        <Reference Include="BepInEx, Version=5.4.11.0, Culture=neutral, PublicKeyToken=null">
           <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\BepInEx\core\BepInEx.dll</HintPath>
           <Private>False</Private>
         </Reference>
