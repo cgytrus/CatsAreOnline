@@ -21,7 +21,7 @@ using CatControls = CaLAPI.API.Cat.CatControls;
 using CatPartManager = CaLAPI.API.Cat.CatPartManager;
 
 namespace CatsAreOnline {
-    [BepInPlugin("mod.cgytrus.plugin.calOnline", "Cats are Online", "0.2.3")]
+    [BepInPlugin("mod.cgytrus.plugin.calOnline", "Cats are Online", "0.2.4")]
     [BepInDependency("mod.cgytrus.plugins.calapi", "0.1.4")]
     public class MultiplayerPlugin : BaseUnityPlugin {
         public static ConfigEntry<bool> connected;
