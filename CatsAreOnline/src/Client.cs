@@ -56,7 +56,6 @@ namespace CatsAreOnline {
         public Player spectating { get; set; }
         
         public readonly Dictionary<string, Player> playerRegistry = new Dictionary<string, Player>();
-        public readonly Dictionary<string, Command> commandRegistry = new Dictionary<string, Command>();
 
         public readonly ClientDebug debug = new ClientDebug();
 
@@ -126,7 +125,7 @@ namespace CatsAreOnline {
             SendMessageToServer(message, ReliableDeliveryMethod);
         }
 
-        public void SendServerCommand(string command, params string[] args) {
+        public void SendServerCommand(string command) {
             if(_client.ConnectionStatus != NetConnectionStatus.Connected) {
                 Chat.Chat.AddErrorMessage("Not connected to a server");
                 return;
@@ -136,22 +135,17 @@ namespace CatsAreOnline {
             message.Write((byte)DataType.Command);
             message.Write(_guid);
             message.Write(command);
-            message.Write(args.Length);
-            foreach(string arg in args) message.Write(arg);
             SendMessageToServer(message, ReliableDeliveryMethod);
         }
 
-        public void ExecuteCommand(string command, params string[] args) {
-            Chat.Chat.AddMessage($"<color=blue><b>COMMAND:</b> {command} {string.Join(" ", args)}</color>");
-            if(commandRegistry.TryGetValue(command, out Command action)) {
-                try {
-                    action.Execute(args);
-                }
-                catch(Exception ex) {
-                    Chat.Chat.AddErrorMessage(ex.Message);
-                }
+        public void ExecuteCommand(string command) {
+            Chat.Chat.AddMessage($"<color=blue><b>COMMAND:</b> {command}</color>");
+            try {
+                Commands.dispatcher.Execute(command, this);
             }
-            else Chat.Chat.AddErrorMessage($"Command '<b>{command}</b>' not found");
+            catch(Exception ex) {
+                Chat.Chat.AddErrorMessage(ex.Message);
+            }
         }
 
         public static float GetScaleFromCatState(State state) {

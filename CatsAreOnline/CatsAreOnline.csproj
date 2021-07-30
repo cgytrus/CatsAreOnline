@@ -44,30 +44,22 @@
           <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\BepInEx\core\BepInEx.dll</HintPath>
           <Private>False</Private>
         </Reference>
-        <Reference Include="BepInEx.Harmony, Version=2.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\BepInEx\core\BepInEx.Harmony.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
         <Reference Include="CaLAPI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
           <HintPath>..\..\CaLAPI\CaLAPI\bin\Release\CaLAPI.dll</HintPath>
           <Private>False</Private>
         </Reference>
         <Reference Include="Lidgren.Network, Version=2012.1.7.0, Culture=neutral, PublicKeyToken=null">
           <HintPath>..\packages\Lidgren.Network.1.0.2\lib\net451\Lidgren.Network.dll</HintPath>
-          <Private>True</Private>
-        </Reference>
-        <Reference Include="Microsoft.CSharp">
-          <Private>True</Private>
         </Reference>
         <Reference Include="mscorlib" />
+        <Reference Include="NBrigadier, Version=1.0.17.4, Culture=neutral, PublicKeyToken=null">
+          <HintPath>..\packages\NBrigadier.1.0.17.4\lib\netstandard2.0\NBrigadier.dll</HintPath>
+        </Reference>
         <Reference Include="System" />
         <Reference Include="System.Core" />
-        <Reference Include="System.Data" />
         <Reference Include="System.ValueTuple, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51">
           <HintPath>..\packages\System.ValueTuple.4.5.0\lib\net461\System.ValueTuple.dll</HintPath>
-          <Private>True</Private>
         </Reference>
-        <Reference Include="System.Xml" />
         <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
           <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\CaL-ABP-Windows_Data\Managed\UnityEngine.dll</HintPath>
           <Private>False</Private>
@@ -80,20 +72,12 @@
           <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\CaL-ABP-Windows_Data\Managed\UnityEngine.Physics2DModule.dll</HintPath>
           <Private>False</Private>
         </Reference>
-        <Reference Include="UnityEngine.TextCoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\CaL-ABP-Windows_Data\Managed\UnityEngine.TextCoreModule.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
         <Reference Include="UnityEngine.TextRenderingModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
           <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\CaL-ABP-Windows_Data\Managed\UnityEngine.TextRenderingModule.dll</HintPath>
           <Private>False</Private>
         </Reference>
         <Reference Include="UnityEngine.UI, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
           <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\CaL-ABP-Windows_Data\Managed\UnityEngine.UI.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="UnityEngine.UIElementsModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\CaL-ABP-Windows_Data\Managed\UnityEngine.UIElementsModule.dll</HintPath>
           <Private>False</Private>
         </Reference>
         <Reference Include="UnityEngine.UIModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
@@ -107,7 +91,6 @@
         <Compile Include="src\Chat\Message.cs" />
         <Compile Include="src\Client.cs" />
         <Compile Include="src\ClientDebug.cs" />
-        <Compile Include="src\Command.cs" />
         <Compile Include="src\Commands.cs" />
         <Compile Include="src\DataType.cs" />
         <Compile Include="src\NetBufferExtensions.cs" />

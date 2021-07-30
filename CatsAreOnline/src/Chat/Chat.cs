@@ -168,12 +168,8 @@ namespace CatsAreOnline.Chat {
                 RemoveOldHistory();
                 
                 if(text[0] == '/') {
-                    string[] fullCommand = text.Substring(1).Split(' ');
-                    string command = fullCommand[0];
-                    string[] args = new string[fullCommand.Length - 1];
-                    Array.Copy(fullCommand, 1, args, 0, args.Length);
-                    
-                    _client.ExecuteCommand(command, args);
+                    string command = text.Substring(1);
+                    _client.ExecuteCommand(command);
                 }
                 else _client.SendChatMessage(text);
             }

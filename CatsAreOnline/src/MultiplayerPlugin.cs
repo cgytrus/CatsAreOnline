@@ -21,7 +21,7 @@ using CatControls = CaLAPI.API.Cat.CatControls;
 using CatPartManager = CaLAPI.API.Cat.CatPartManager;
 
 namespace CatsAreOnline {
-    [BepInPlugin("mod.cgytrus.plugin.calOnline", "Cats are Online", "0.2.4")]
+    [BepInPlugin("mod.cgytrus.plugin.calOnline", "Cats are Online", "0.3.0")]
     [BepInDependency("mod.cgytrus.plugins.calapi", "0.1.4")]
     public class MultiplayerPlugin : BaseUnityPlugin {
         public static ConfigEntry<bool> connected;
@@ -39,7 +39,6 @@ namespace CatsAreOnline {
         private ConfigEntry<float> _messageFadeOutSpeed;
 
         private Client _client;
-        private Commands _commands;
 
         private State _state;
         private float _scale;
@@ -76,8 +75,7 @@ namespace CatsAreOnline {
             _client.Initialize();
             PatchesClientProvider.client = _client;
 
-            _commands = new Commands();
-            _commands.Initialize(_client);
+            Commands.Initialize();
             
             _state = State.Normal;
             _scale = Client.GetScaleFromCatState(_state);

@@ -8,15 +8,13 @@ using Lidgren.Network;
 
 namespace CatsAreOnlineServer {
     public static class Server {
-        public const string Version = "0.2.1";
+        public const string Version = "0.3.0";
         
         private const NetDeliveryMethod GlobalDeliveryMethod = NetDeliveryMethod.UnreliableSequenced;
         private const NetDeliveryMethod LessReliableDeliveryMethod = NetDeliveryMethod.ReliableSequenced;
         private const NetDeliveryMethod ReliableDeliveryMethod = NetDeliveryMethod.ReliableOrdered;
 
         public static readonly Dictionary<Guid, Player> playerRegistry = new();
-        
-        public static readonly Dictionary<string, Func<string[], string[]>> commandRegistry = new();
         
         private static NetServer _server;
         private static readonly List<NetConnection> tempConnections = new();
@@ -205,70 +203,77 @@ namespace CatsAreOnlineServer {
             NetDeliveryMethod deliveryMethod = GlobalDeliveryMethod;
             bool sendToAll = false;
 
-            void SetDeliveryMethod(NetDeliveryMethod method) {
-                if(method > deliveryMethod) deliveryMethod = method;
-            }
-
             while(message.ReadByte(out byte stateTypeByte)) {
                 if(notifyMessage == null) {
                     notifyMessage = _server.CreateMessage();
                     notifyMessage.Write((byte)DataType.PlayerChangedState);
                     notifyMessage.Write(player.username);
                 }
-                Player.StateType stateType = (Player.StateType)stateTypeByte;
-                switch(stateType) {
-                    case Player.StateType.Position:
-                        player.posX = message.ReadFloat();
-                        player.posY = message.ReadFloat();
-                        notifyMessage.Write(stateTypeByte);
-                        notifyMessage.Write(player.posX);
-                        notifyMessage.Write(player.posY);
-                        SetDeliveryMethod(GlobalDeliveryMethod);
-                        break;
-                    case Player.StateType.Room:
-                        player.room = message.ReadString();
-                        LogPlayerAction(player, $"changed room to {player.room}");
-                        notifyMessage.Write(stateTypeByte);
-                        notifyMessage.Write(player.room);
-                        SetDeliveryMethod(LessReliableDeliveryMethod);
-                        sendToAll = true;
-                        break;
-                    case Player.StateType.Color:
-                        player.colorR = message.ReadFloat();
-                        player.colorG = message.ReadFloat();
-                        player.colorB = message.ReadFloat();
-                        player.colorA = message.ReadFloat();
-                        notifyMessage.Write(stateTypeByte);
-                        notifyMessage.Write(player.colorR);
-                        notifyMessage.Write(player.colorG);
-                        notifyMessage.Write(player.colorB);
-                        notifyMessage.Write(player.colorA);
-                        SetDeliveryMethod(LessReliableDeliveryMethod);
-                        break;
-                    case Player.StateType.Scale:
-                        player.scale = message.ReadFloat();
-                        notifyMessage.Write(stateTypeByte);
-                        notifyMessage.Write(player.scale);
-                        SetDeliveryMethod(LessReliableDeliveryMethod);
-                        break;
-                    case Player.StateType.Ice:
-                        player.ice = message.ReadBoolean();
-                        notifyMessage.Write(stateTypeByte);
-                        notifyMessage.Write(player.ice);
-                        SetDeliveryMethod(LessReliableDeliveryMethod);
-                        break;
-                    case Player.StateType.IceRotation:
-                        player.iceRotation = message.ReadFloat();
-                        notifyMessage.Write(stateTypeByte);
-                        notifyMessage.Write(player.iceRotation);
-                        SetDeliveryMethod(GlobalDeliveryMethod);
-                        break;
-                }
+                
+                ReadPlayerChangedState(message, notifyMessage, player, stateTypeByte, ref sendToAll,
+                    ref deliveryMethod);
             }
 
             if(notifyMessage == null) return;
             if(sendToAll) _server.SendToAll(notifyMessage, deliveryMethod);
             else SendToAllInCurrentRoom(player, notifyMessage, deliveryMethod);
+        }
+        
+        private static void ReadPlayerChangedState(NetBuffer message, NetBuffer notifyMessage, Player player,
+            byte stateTypeByte, ref bool sendToAll, ref NetDeliveryMethod deliveryMethod) {
+            Player.StateType stateType = (Player.StateType)stateTypeByte;
+            switch(stateType) {
+                case Player.StateType.Position:
+                    player.posX = message.ReadFloat();
+                    player.posY = message.ReadFloat();
+                    notifyMessage.Write(stateTypeByte);
+                    notifyMessage.Write(player.posX);
+                    notifyMessage.Write(player.posY);
+                    SetDeliveryMethod(GlobalDeliveryMethod, ref deliveryMethod);
+                    break;
+                case Player.StateType.Room:
+                    player.room = message.ReadString();
+                    LogPlayerAction(player, $"changed room to {player.room}");
+                    notifyMessage.Write(stateTypeByte);
+                    notifyMessage.Write(player.room);
+                    SetDeliveryMethod(LessReliableDeliveryMethod, ref deliveryMethod);
+                    sendToAll = true;
+                    break;
+                case Player.StateType.Color:
+                    player.colorR = message.ReadFloat();
+                    player.colorG = message.ReadFloat();
+                    player.colorB = message.ReadFloat();
+                    player.colorA = message.ReadFloat();
+                    notifyMessage.Write(stateTypeByte);
+                    notifyMessage.Write(player.colorR);
+                    notifyMessage.Write(player.colorG);
+                    notifyMessage.Write(player.colorB);
+                    notifyMessage.Write(player.colorA);
+                    SetDeliveryMethod(LessReliableDeliveryMethod, ref deliveryMethod);
+                    break;
+                case Player.StateType.Scale:
+                    player.scale = message.ReadFloat();
+                    notifyMessage.Write(stateTypeByte);
+                    notifyMessage.Write(player.scale);
+                    SetDeliveryMethod(LessReliableDeliveryMethod, ref deliveryMethod);
+                    break;
+                case Player.StateType.Ice:
+                    player.ice = message.ReadBoolean();
+                    notifyMessage.Write(stateTypeByte);
+                    notifyMessage.Write(player.ice);
+                    SetDeliveryMethod(LessReliableDeliveryMethod, ref deliveryMethod);
+                    break;
+                case Player.StateType.IceRotation:
+                    player.iceRotation = message.ReadFloat();
+                    notifyMessage.Write(stateTypeByte);
+                    notifyMessage.Write(player.iceRotation);
+                    SetDeliveryMethod(GlobalDeliveryMethod, ref deliveryMethod);
+                    break;
+            }
+        }
+        
+        private static void SetDeliveryMethod(NetDeliveryMethod method, ref NetDeliveryMethod deliveryMethod) {
+            if(method > deliveryMethod) deliveryMethod = method;
         }
 
         private static void ChatMessageReceived(NetBuffer message) {
@@ -287,47 +292,21 @@ namespace CatsAreOnlineServer {
                 ReliableDeliveryMethod, 0);
         }
 
-        private static void CommandReceived(NetIncomingMessage message) {
+        private static void CommandReceived(NetBuffer message) {
             (Player player, bool registered) = GetClientData(message);
             if(!registered) return;
 
             string command = message.ReadString();
-            string[] args = new string[message.ReadInt32()];
-            for(int i = 0; i < args.Length; i++) args[i] = message.ReadString();
-
-            string fullCommand = $"{command} {string.Join(' ', args)}";
-
-            Console.WriteLine($"Received a command from {player.username} : '{fullCommand}'");
-            
-            ExecuteCommand(message.SenderConnection, player.username, command, args);
+            Console.WriteLine($"Received a command from {player.username} : '{command}'");
+            ExecuteCommand(player, command);
         }
 
-        private static void ExecuteCommand(NetConnection sender, string username, string command, params string[] args) {
-            if(commandRegistry.TryGetValue(command, out Func<string[], string[]> action)) {
-                try {
-                    string[] messages = action(args);
-                    foreach(string message in messages) {
-                        NetOutgoingMessage response = _server.CreateMessage();
-                        response.Write((byte)DataType.ChatMessage);
-                        response.Write(username);
-                        response.Write(message);
-                        _server.SendMessage(response, sender, ReliableDeliveryMethod);
-                    }
-                }
-                catch(Exception ex) {
-                    NetOutgoingMessage errorMessage = _server.CreateMessage();
-                    errorMessage.Write((byte)DataType.ChatMessage);
-                    errorMessage.Write(username);
-                    errorMessage.Write(ServerErrorMessage(ex.Message));
-                    _server.SendMessage(errorMessage, sender, ReliableDeliveryMethod);
-                }
+        private static void ExecuteCommand(Player player, string command) {
+            try {
+                Commands.dispatcher.Execute(command, player);
             }
-            else {
-                NetOutgoingMessage errorMessage = _server.CreateMessage();
-                errorMessage.Write((byte)DataType.ChatMessage);
-                errorMessage.Write(username);
-                errorMessage.Write(ServerErrorMessage($"Command '<b>{command}</b>' not found"));
-                _server.SendMessage(errorMessage, sender, ReliableDeliveryMethod);
+            catch(Exception ex) {
+                SendChatMessage(player, ServerErrorMessage(ex.Message));
             }
         }
 
@@ -341,8 +320,20 @@ namespace CatsAreOnlineServer {
             _server.SendMessage(message, tempConnections, method, 0);
         }
 
+        public static void SendChatMessage(Player player, string message) {
+            NetOutgoingMessage response = _server.CreateMessage();
+            response.Write((byte)DataType.ChatMessage);
+            response.Write(player.username);
+            response.Write(message);
+            _server.SendMessage(response, player.connection, ReliableDeliveryMethod);
+        }
+
         public static string ServerMessage(string message) => $"<color=blue>[SERVER]</color> {message}";
-        private static string ServerErrorMessage(string message) =>
+        public static string ServerDebugMessage(string message) =>
+            ServerMessage($"<color=grey><b>DEBUG:</b> {message}</color>");
+        public static string ServerWarningMessage(string message) =>
+            ServerMessage($"<color=yellow><b>WARN:</b> {message}</color>");
+        public static string ServerErrorMessage(string message) =>
             ServerMessage($"<color=red><b>ERROR:</b> {message}</color>");
 
         private static (Player player, bool registered) GetClientData(NetBuffer message) =>
