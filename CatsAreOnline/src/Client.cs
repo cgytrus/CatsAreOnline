@@ -74,6 +74,8 @@ namespace CatsAreOnline {
             playerPartManager ? (Vector2)playerPartManager.GetCatCenter() : Vector2.zero;
 
         public void Initialize() {
+            state.client = this;
+            
             NetPeerConfiguration config = new NetPeerConfiguration("mod.cgytrus.plugin.calOnline");
             
             config.DisableMessageType(NetIncomingMessageType.Receipt);
