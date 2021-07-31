@@ -46,7 +46,7 @@ namespace CatsAreOnlineServer {
             Console.WriteLine($"Starting server (v{Version}) on port {port.ToString(CultureInfo.InvariantCulture)}");
             _server.Start();
             
-            if(upnp) _server.UPnP.ForwardPort(port, "Cats are Liquid: A Better Place");
+            if(upnp) _server.UPnP.ForwardPort(port, "Cats are Liquid - A Better Place");
 
             while(true) {
                 NetIncomingMessage message;
