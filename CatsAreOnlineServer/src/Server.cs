@@ -4,6 +4,8 @@ using System.Globalization;
 using System.Linq;
 using System.Net;
 
+using CatsAreOnline.Shared;
+
 using Lidgren.Network;
 
 namespace CatsAreOnlineServer {

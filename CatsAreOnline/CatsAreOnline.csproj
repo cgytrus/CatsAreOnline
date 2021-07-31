@@ -92,7 +92,6 @@
         <Compile Include="src\Client.cs" />
         <Compile Include="src\ClientDebug.cs" />
         <Compile Include="src\Commands.cs" />
-        <Compile Include="src\DataType.cs" />
         <Compile Include="src\NetBufferExtensions.cs" />
         <Compile Include="src\Patches\ChatControlBlock.cs" />
         <Compile Include="src\Patches\CurrentIceUpdates.cs" />
@@ -106,6 +105,12 @@
     </ItemGroup>
     <ItemGroup>
       <None Include="packages.config" />
+    </ItemGroup>
+    <ItemGroup>
+      <ProjectReference Include="..\CatsAreOnline.Shared\CatsAreOnline.Shared.csproj">
+        <Project>{c49eaf4d-ee06-49c4-9137-f2a7a9ad8e0b}</Project>
+        <Name>CatsAreOnline.Shared</Name>
+      </ProjectReference>
     </ItemGroup>
     <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
     <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

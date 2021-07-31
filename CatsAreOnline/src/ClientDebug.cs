@@ -1,5 +1,7 @@
 ﻿using System;
 
+using CatsAreOnline.Shared;
+
 using Lidgren.Network;
 
 namespace CatsAreOnline {

@@ -3,6 +3,8 @@ using System.Collections.Generic;
 
 using Cat;
 
+using CatsAreOnline.Shared;
+
 using Lidgren.Network;
 
 using UnityEngine;
