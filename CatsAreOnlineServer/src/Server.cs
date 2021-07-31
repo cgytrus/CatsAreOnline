@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Net;
+using System.Threading;
 
 using CatsAreOnline.Shared;
 
@@ -11,6 +13,7 @@ using Lidgren.Network;
 namespace CatsAreOnlineServer {
     public static class Server {
         public const string Version = "0.3.0";
+        public static TimeSpan TargetTickTime { get; } = TimeSpan.FromSeconds(0.01d);
         
         private const NetDeliveryMethod GlobalDeliveryMethod = NetDeliveryMethod.UnreliableSequenced;
         private const NetDeliveryMethod LessReliableDeliveryMethod = NetDeliveryMethod.ReliableSequenced;
@@ -50,12 +53,18 @@ namespace CatsAreOnlineServer {
             
             if(upnp) _server.UPnP.ForwardPort(port, "Cats are Liquid - A Better Place");
 
+            Stopwatch stopwatch = Stopwatch.StartNew();
             while(true) {
+                stopwatch.Restart();
+                
                 NetIncomingMessage message;
                 while((message = _server.ReadMessage()) != null) {
                     MessageReceived(message);
                     _server.Recycle(message);
                 }
+
+                TimeSpan timeout = TargetTickTime - stopwatch.Elapsed;
+                if(timeout.Ticks > 0L) Thread.Sleep(timeout);
             }
         }
 
