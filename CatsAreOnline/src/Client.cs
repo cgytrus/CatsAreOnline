@@ -29,7 +29,7 @@ namespace CatsAreOnline {
             set {
                 _displayOwnCat = value;
                 if(username != null && playerRegistry.TryGetValue(username, out Player player))
-                    player.gameObject.SetActive(_displayOwnCat);
+                    player.renderer.enabled = _displayOwnCat;
             }
         }
 

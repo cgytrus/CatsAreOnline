@@ -37,6 +37,11 @@ namespace CatsAreOnline {
         private ConfigEntry<KeyboardShortcut> _historyDown;
         private ConfigEntry<float> _messageFadeOutDelay;
         private ConfigEntry<float> _messageFadeOutSpeed;
+        
+        private ConfigEntry<Player.InterpolationSettings.InterpolationMode> _interpolationMode;
+        private ConfigEntry<double> _interpolationTime;
+        private ConfigEntry<int> _interpolationPacketsToAverage;
+        private ConfigEntry<double> _interpolationMaxTime;
 
         private Client _client;
 
@@ -52,6 +57,7 @@ namespace CatsAreOnline {
             Harmony.CreateAndPatchAll(typeof(PipeColorUpdate));
             Harmony.CreateAndPatchAll(typeof(CurrentIceUpdates));
             
+            // i'm sincerely sorry for this kind of configuration code
             connected = Config.Bind("General", "Connected", false, "");
             _username = Config.Bind("General", "Username", "", "Your internal name");
             _displayName = Config.Bind("General", "Display Name", "",
@@ -68,6 +74,12 @@ namespace CatsAreOnline {
             _historyDown = Config.Bind("General", "History Down", new KeyboardShortcut(KeyCode.DownArrow), "");
             _messageFadeOutDelay = Config.Bind("Chat", "Message Fade Out Delay", 5f, "");
             _messageFadeOutSpeed = Config.Bind("Chat", "Message Fade Out Speed", 1f, "");
+            
+            _interpolationMode = Config.Bind("Advanced", "Interpolation Mode",
+                Player.InterpolationSettings.InterpolationMode.Lerp, "");
+            _interpolationTime = Config.Bind("Advanced", "Interpolation Time", 2d, "");
+            _interpolationPacketsToAverage = Config.Bind("Advanced", "Interpolation Packets To Average", 20, "");
+            _interpolationMaxTime = Config.Bind("Advanced", "Interpolation Max Time", 5d, "");
 
             connected.Value = false;
 
@@ -100,6 +112,21 @@ namespace CatsAreOnline {
 
             Chat.Chat.fadeOutSpeed = _messageFadeOutSpeed.Value;
             _messageFadeOutSpeed.SettingChanged += (_, __) => Chat.Chat.fadeOutSpeed = _messageFadeOutSpeed.Value;
+
+            Player.interpolationSettings = new Player.InterpolationSettings(_interpolationMode.Value,
+                _interpolationTime.Value, _interpolationPacketsToAverage.Value, _interpolationMaxTime.Value);
+            _interpolationMode.SettingChanged += (_, __) => Player.interpolationSettings =
+                new Player.InterpolationSettings(_interpolationMode.Value, Player.interpolationSettings.time,
+                    Player.interpolationSettings.packetsToAverage, Player.interpolationSettings.maxTime);
+            _interpolationTime.SettingChanged += (_, __) => Player.interpolationSettings =
+                new Player.InterpolationSettings(Player.interpolationSettings.mode, _interpolationTime.Value,
+                    Player.interpolationSettings.packetsToAverage, Player.interpolationSettings.maxTime);
+            _interpolationPacketsToAverage.SettingChanged += (_, __) => Player.interpolationSettings =
+                new Player.InterpolationSettings(Player.interpolationSettings.mode, Player.interpolationSettings.time,
+                    _interpolationPacketsToAverage.Value, Player.interpolationSettings.maxTime);
+            _interpolationMaxTime.SettingChanged += (_, __) => Player.interpolationSettings =
+                new Player.InterpolationSettings(Player.interpolationSettings.mode, Player.interpolationSettings.time,
+                    Player.interpolationSettings.packetsToAverage, _interpolationMaxTime.Value);
 
             CatPartManager.awake += (caller, args) => {
                 Cat.CatPartManager partManager = (Cat.CatPartManager)caller;
