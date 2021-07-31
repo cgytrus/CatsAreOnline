@@ -13,7 +13,7 @@ using Lidgren.Network;
 namespace CatsAreOnlineServer {
     public static class Server {
         public const string Version = "0.3.0";
-        public static TimeSpan TargetTickTime { get; } = TimeSpan.FromSeconds(0.01d);
+        public static TimeSpan targetTickTime { get; } = TimeSpan.FromSeconds(0.01d);
         
         private const NetDeliveryMethod GlobalDeliveryMethod = NetDeliveryMethod.UnreliableSequenced;
         private const NetDeliveryMethod LessReliableDeliveryMethod = NetDeliveryMethod.ReliableSequenced;
@@ -63,7 +63,7 @@ namespace CatsAreOnlineServer {
                     _server.Recycle(message);
                 }
 
-                TimeSpan timeout = TargetTickTime - stopwatch.Elapsed;
+                TimeSpan timeout = targetTickTime - stopwatch.Elapsed;
                 if(timeout.Ticks > 0L) Thread.Sleep(timeout);
             }
         }
