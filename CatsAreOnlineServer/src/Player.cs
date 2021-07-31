@@ -16,7 +16,7 @@ namespace CatsAreOnlineServer {
         
         public NetConnection connection { get; init; }
         public IPEndPoint ip => connection?.RemoteEndPoint;
-        public Guid guid { get; init; }
+        public Guid id { get; init; }
         public string username { get; init; }
         public string displayName { get; init; }
         public float posX { get; set; }

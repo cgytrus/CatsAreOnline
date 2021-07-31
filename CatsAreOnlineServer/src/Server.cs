@@ -172,7 +172,7 @@ namespace CatsAreOnlineServer {
 
             Player player = new() {
                 connection = message.SenderConnection,
-                guid = guid,
+                id = guid,
                 username = username,
                 displayName = message.ReadString(),
                 posX = message.ReadFloat(),
@@ -293,7 +293,7 @@ namespace CatsAreOnlineServer {
 
             string text = message.ReadString();
 
-            Console.WriteLine($"[{player.username} ({player.ip} | {player.guid.ToString()})] {text}");
+            Console.WriteLine($"[{player.username} ({player.ip} | {player.id.ToString()})] {text}");
 
             NetOutgoingMessage resendMessage = _server.CreateMessage();
             resendMessage.Write((byte)DataType.ChatMessage);
@@ -352,7 +352,7 @@ namespace CatsAreOnlineServer {
                 (player, true) : (null, false);
 
         private static void LogPlayerAction(Player player, string action) =>
-            LogPlayerAction(player.ip.ToString(), player.guid.ToString(), player.username, action);
+            LogPlayerAction(player.ip.ToString(), player.id.ToString(), player.username, action);
 
         private static void LogPlayerAction(string ip, string guid, string username, string action) =>
             Console.WriteLine($"Player {username} ({ip} | {guid}) {action}");
