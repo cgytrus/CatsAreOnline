@@ -77,9 +77,9 @@ namespace CatsAreOnline {
             
             _interpolationMode = Config.Bind("Advanced", "Interpolation Mode",
                 Player.InterpolationSettings.InterpolationMode.Lerp, "");
-            _interpolationTime = Config.Bind("Advanced", "Interpolation Time", 2d, "");
+            _interpolationTime = Config.Bind("Advanced", "Interpolation Time", 3d, "");
             _interpolationPacketsToAverage = Config.Bind("Advanced", "Interpolation Packets To Average", 20, "");
-            _interpolationMaxTime = Config.Bind("Advanced", "Interpolation Max Time", 5d, "");
+            _interpolationMaxTime = Config.Bind("Advanced", "Interpolation Max Time", 10d, "");
 
             connected.Value = false;
 
