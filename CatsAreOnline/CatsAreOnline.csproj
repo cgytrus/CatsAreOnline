@@ -97,14 +97,16 @@
         <Compile Include="src\Patches\CurrentIceUpdates.cs" />
         <Compile Include="src\Patches\PatchesClientProvider.cs" />
         <Compile Include="src\Patches\PipeColorUpdate.cs" />
-        <Compile Include="src\CatSyncedObject.cs" />
         <Compile Include="src\MultiplayerPlugin.cs" />
         <Compile Include="src\Patches\IceRotationUpdates.cs" />
         <Compile Include="src\Patches\JunctionUpdates.cs" />
-        <Compile Include="src\CatSyncedObjectState.cs" />
         <Compile Include="src\Player.cs" />
-        <Compile Include="src\SyncedObject.cs" />
-        <Compile Include="src\SyncedObjectState.cs" />
+        <Compile Include="src\SyncedObjects\CatSyncedObject.cs" />
+        <Compile Include="src\SyncedObjects\CatSyncedObjectState.cs" />
+        <Compile Include="src\SyncedObjects\CompanionSyncedObject.cs" />
+        <Compile Include="src\SyncedObjects\CompanionSyncedObjectState.cs" />
+        <Compile Include="src\SyncedObjects\SyncedObject.cs" />
+        <Compile Include="src\SyncedObjects\SyncedObjectState.cs" />
     </ItemGroup>
     <ItemGroup>
       <None Include="packages.config" />

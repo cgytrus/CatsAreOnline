@@ -1,4 +1,6 @@
-﻿using System.Globalization;
+﻿using System;
+using System.Globalization;
+using System.Reflection;
 
 using BepInEx;
 using BepInEx.Configuration;
@@ -10,10 +12,10 @@ using Cat;
 
 using CatsAreOnline.Chat;
 using CatsAreOnline.Patches;
+using CatsAreOnline.Shared;
+using CatsAreOnline.SyncedObjects;
 
 using HarmonyLib;
-
-using PipeSystem;
 
 using UnityEngine;
 
@@ -45,10 +47,14 @@ namespace CatsAreOnline {
 
         private Client _client;
 
-        private State _state;
-        private float _scale;
-        private Color _color;
+        public static State catState { get; private set; }
+        public static float catScale { get; private set; }
+        public static Color catColor { get; private set; }
+        
         private bool _update;
+
+        private Guid _companionId = Guid.Empty;
+        private FieldInfo _companionFieldInfo = AccessTools.Field(typeof(Cat.CatControls), "companion");
 
         private void Awake() {
             Harmony.CreateAndPatchAll(typeof(JunctionUpdates));
@@ -88,8 +94,8 @@ namespace CatsAreOnline {
 
             Commands.Initialize();
             
-            _state = State.Normal;
-            _scale = Client.GetScaleFromCatState(_state);
+            catState = State.Normal;
+            catScale = Client.GetScaleFromCatState(catState);
             connected.SettingChanged += (_, __) => {
                 if(!SetConnected(connected.Value)) connected.Value = false;
             };
@@ -151,8 +157,36 @@ namespace CatsAreOnline {
                 _client.playerControls = controls;
 
                 controls.StateSwitchAction += state => {
-                    _state = (State)state;
-                    _scale = Client.GetScaleFromCatState(_state);
+                    catState = (State)state;
+                    catScale = Client.GetScaleFromCatState(catState);
+                };
+
+                controls.ControlTargetChangedAction += target => {
+                    switch(target) {
+                        case Cat.CatControls.ControlTarget.Player:
+                            _client.ChangeControllingObject(_client.catId);
+                            break;
+                        case Cat.CatControls.ControlTarget.Companion:
+                            if(_companionId == Guid.Empty) break;
+                            _client.ChangeControllingObject(_companionId);
+                            break;
+                    }
+                };
+
+                controls.CompanionToggeledAction += enabled => {
+                    if(enabled) {
+                        CompanionSyncedObjectState.companion = (Companion)_companionFieldInfo.GetValue(caller);
+                        _companionId = Guid.NewGuid();
+                        _client.companionState = new CompanionSyncedObjectState { client = _client };
+                        _client.companionState.Update();
+                        _client.SpawnObject(_companionId, SyncedObjectType.Companion, _client.companionState, true);
+                    }
+                    else {
+                        CompanionSyncedObjectState.companion = null;
+                        _client.companionState = null;
+                        _client.RemoveObject(_companionId);
+                        _companionId = Guid.Empty;
+                    }
                 };
             };
 
@@ -194,7 +228,7 @@ namespace CatsAreOnline {
                 
                 if(!controls.GetComponent<PlayerActor>()) return;
 
-                _color = args.newColor;
+                catColor = args.newColor;
             };
 
             UI.initialized += (_, __) => {
@@ -223,22 +257,13 @@ namespace CatsAreOnline {
         }
 
         private void FixedUpdate() {
-            if(Pipe.catInPipe) _client.catState.scale = Client.GetScaleFromCatState(State.Liquid);
-            else {
-                _client.catState.scale = _scale;
-                _client.catState.color = _color;
+            _client.catState.Update();
+            _client.companionState?.Update();
+            if(_update) {
+                _client.SendStateDeltaToServer(_client.catId, _client.catState);
+                if(_client.companionState != null && _companionId != Guid.Empty)
+                    _client.SendStateDeltaToServer(_companionId, _client.companionState);
             }
-            _client.catState.movementCatState = _state;
-            _client.catState.position = _client.currentCatPosition;
-            if(!_client.playerControls) return;
-            bool ice = CurrentIceUpdates.currentIce;
-            _client.catState.ice = ice;
-            if(ice) {
-                _client.catState.color = _client.iceColor;
-                _client.catState.scale = CurrentIceUpdates.currentIce.Size.y * 3.5f;
-            }
-            
-            if(_update) _client.SendStateDeltaToServer(_client.ownPlayer.controlling, _client.catState);
             _update = !_update;
         }
 

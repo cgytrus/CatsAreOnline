@@ -8,7 +8,7 @@ using Lidgren.Network;
 
 using UnityEngine;
 
-namespace CatsAreOnline {
+namespace CatsAreOnline.SyncedObjects {
     public abstract class SyncedObjectState {
         public Client client { get; set; }
 
@@ -84,6 +84,8 @@ namespace CatsAreOnline {
         private static bool _moving;
         private static float _lastMovingUpdate;
 
+        public abstract void Update();
+
         private void UpdateMovementStatus(State state, float deltaThreshold, float stayTime) {
             if(!_update && state == State.Normal) {
                 Vector2 posDelta = _prevPosition - _position;
@@ -97,6 +99,13 @@ namespace CatsAreOnline {
             _moving = (state != State.Normal || _update) && _prevPosition != _position;
 
             if(_update && Time.unscaledTime - _lastMovingUpdate > stayTime) _update = false;
+        }
+
+        public virtual void Write(NetBuffer message) {
+            message.Write(position);
+            message.Write(color);
+            message.Write(scale);
+            message.Write(rotation);
         }
         
         [SuppressMessage("ReSharper", "InvertIf")]

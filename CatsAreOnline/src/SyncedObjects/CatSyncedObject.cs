@@ -4,7 +4,7 @@ using Lidgren.Network;
 
 using UnityEngine;
 
-namespace CatsAreOnline {
+namespace CatsAreOnline.SyncedObjects {
     public class CatSyncedObject : SyncedObject {
         public CircleCollider2D catCollider { get; set; }
         public BoxCollider2D iceCollider { get; set; }
@@ -18,11 +18,16 @@ namespace CatsAreOnline {
         public void SetIce(bool ice) {
             ((CatSyncedObjectState)state).ice = ice;
             renderer.sprite = ice ? state.client.iceSprite : state.client.catSprite;
+            UpdateColliders();
             if(!ice) transform.eulerAngles = Vector3.zero;
         }
 
         public override void UpdateRoom() {
             base.UpdateRoom();
+            UpdateColliders();
+        }
+
+        private void UpdateColliders() {
             bool enableAnyCollider = owner.username != state.client.ownPlayer.username && state.client.playerCollisions;
             catCollider.enabled = enableAnyCollider && !((CatSyncedObjectState)state).ice;
             iceCollider.enabled = enableAnyCollider && ((CatSyncedObjectState)state).ice;

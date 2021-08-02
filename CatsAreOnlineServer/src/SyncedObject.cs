@@ -103,6 +103,18 @@ namespace CatsAreOnlineServer {
                 rotation = message.ReadFloat(),
                 ice = message.ReadBoolean()
             },
+            SyncedObjectType.Companion => new CompanionSyncedObject {
+                id = id,
+                owner = owner,
+                posX = message.ReadFloat(),
+                posY = message.ReadFloat(),
+                colorR = message.ReadFloat(),
+                colorG = message.ReadFloat(),
+                colorB = message.ReadFloat(),
+                colorA = message.ReadFloat(),
+                scale = message.ReadFloat(),
+                rotation = message.ReadFloat()
+            },
             _ => throw new ArgumentOutOfRangeException(nameof(type), type,
                 "Possibly, someone connected with an old version or uses a modified client")
         };

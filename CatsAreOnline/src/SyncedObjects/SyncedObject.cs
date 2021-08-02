@@ -9,7 +9,7 @@ using Lidgren.Network;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace CatsAreOnline {
+namespace CatsAreOnline.SyncedObjects {
     public abstract class SyncedObject : MonoBehaviour {
         public readonly struct InterpolationSettings {
             public enum InterpolationMode { Lerp, LerpUnclamped, Velocity }
@@ -81,22 +81,6 @@ namespace CatsAreOnline {
             else _interpolateStopwatch.Restart();
         }
 
-        /*public virtual void SetRoom(string room, string currentClientRoom) {
-            bool sameRoom = currentClientRoom == room && !string.IsNullOrEmpty(currentClientRoom);
-            bool own = username == state.client.username;
-            state.room = room;
-            gameObject.SetActive(sameRoom);
-            nameTag.gameObject.SetActive(sameRoom);
-            renderer.enabled = !own || state.client.displayOwnCat;
-            collider.enabled = username != state.client.username && state.client.playerCollisions;
-            
-            if(sameRoom || FollowPlayer.customFollowTarget != transform) return;
-            FollowPlayer.followPlayerHead = restoreFollowPlayerHead;
-            FollowPlayer.customFollowTarget = restoreFollowTarget;
-            state.client.spectating = null;
-            Chat.Chat.AddMessage($"Stopped spectating <b>{username}</b> (room changed)");
-        }*/
-
         public virtual void SetColor(Color color) {
             state.color = color;
             renderer.color = color;
@@ -157,24 +141,25 @@ namespace CatsAreOnline {
 
         public static SyncedObject Create(Client client, SyncedObjectType type, Guid id, Player owner,
             NetBuffer message) {
+            Vector2 position = message.ReadVector2();
+            Color color = message.ReadColor();
+            float scale = message.ReadFloat();
+            float rotation = message.ReadFloat();
+                    
+            GameObject obj = new GameObject($"OnlinePlayer_{owner.username}_{type.ToString()}") { layer = 0 };
+            DontDestroyOnLoad(obj);
+
+            SpriteRenderer renderer = obj.AddComponent<SpriteRenderer>();
+            renderer.sortingOrder = -50;
+
+            Rigidbody2D rigidbody = obj.AddComponent<Rigidbody2D>();
+            rigidbody.bodyType = RigidbodyType2D.Kinematic;
+            rigidbody.interpolation = RigidbodyInterpolation2D.Extrapolate;
+            rigidbody.useFullKinematicContacts = true;
+            
             switch(type) {
                 case SyncedObjectType.Cat:
-                    Vector2 position = message.ReadVector2();
-                    Color color = message.ReadColor();
-                    float scale = message.ReadFloat();
-                    float rotation = message.ReadFloat();
                     bool ice = message.ReadBoolean();
-                    
-                    GameObject obj = new GameObject($"OnlinePlayer_{owner.username}") { layer = 0 };
-                    DontDestroyOnLoad(obj);
-
-                    SpriteRenderer renderer = obj.AddComponent<SpriteRenderer>();
-                    renderer.sortingOrder = -50;
-
-                    Rigidbody2D rigidbody = obj.AddComponent<Rigidbody2D>();
-                    rigidbody.bodyType = RigidbodyType2D.Kinematic;
-                    rigidbody.interpolation = RigidbodyInterpolation2D.Extrapolate;
-                    rigidbody.useFullKinematicContacts = true;
 
                     CircleCollider2D catCollider = obj.AddComponent<CircleCollider2D>();
                     catCollider.radius = 0.4f;
@@ -185,7 +170,8 @@ namespace CatsAreOnline {
                     cat.state.client = client;
                     cat.id = id;
                     cat.owner = owner;
-                    cat.nameTag = CreatePlayerNameTag(owner.username, owner.displayName, client.nameTags, client.nameTagFont);
+                    cat.nameTag = CreatePlayerNameTag(owner.username, owner.displayName, client.nameTags,
+                        client.nameTagFont);
                     cat.renderer = renderer;
                     cat.rigidbody = rigidbody;
                     cat.catCollider = catCollider;
@@ -200,6 +186,27 @@ namespace CatsAreOnline {
                     cat.UpdateRoom();
             
                     return cat;
+                case SyncedObjectType.Companion:
+                    BoxCollider2D companionCollider = obj.AddComponent<BoxCollider2D>();
+            
+                    CompanionSyncedObject companion = obj.AddComponent<CompanionSyncedObject>();
+                    companion.state.client = client;
+                    companion.id = id;
+                    companion.owner = owner;
+                    companion.nameTag = CreatePlayerNameTag(owner.username, owner.displayName, client.nameTags,
+                        client.nameTagFont);
+                    companion.renderer = renderer;
+                    companion.rigidbody = rigidbody;
+                    companion.collider = companionCollider;
+            
+                    companion.SetPosition(position);
+                    companion.SetColor(color);
+                    companion.SetScale(scale);
+                    companion.SetRotation(rotation);
+                    
+                    companion.UpdateRoom();
+            
+                    return companion;
             }
 
             return null;

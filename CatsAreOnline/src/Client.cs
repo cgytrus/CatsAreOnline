@@ -5,6 +5,7 @@ using System.Linq;
 using Cat;
 
 using CatsAreOnline.Shared;
+using CatsAreOnline.SyncedObjects;
 
 using Lidgren.Network;
 
@@ -56,12 +57,16 @@ namespace CatsAreOnline {
         public Player ownPlayer { get; private set; } =
             new Player(null, null, null, Guid.Empty);
         public CatSyncedObjectState catState { get; } = new CatSyncedObjectState();
+        public CompanionSyncedObjectState companionState { get; set; }
+        public Guid catId { get; private set; }
         public Player spectating { get; set; }
         
         public readonly Dictionary<string, Player> playerRegistry = new Dictionary<string, Player>();
         public readonly Dictionary<Guid, SyncedObject> syncedObjectRegistry = new Dictionary<Guid, SyncedObject>();
 
         public readonly ClientDebug debug = new ClientDebug();
+
+        private readonly IReadOnlyDictionary<DataType, Action<NetBuffer>> _receivingMessages;
 
         private string _guid;
 
@@ -72,6 +77,7 @@ namespace CatsAreOnline {
 
         private Guid _tempSpawnGuid;
         private bool _waitingForSpawn;
+        private bool _switchControllingAfterSpawn;
 
         public Vector2 currentCatPosition => inJunction ? junctionPosition :
             (FollowPlayer.customFollowTarget || Boiler.PlayerBoilerCounter > 0) && spectating == null ?
@@ -79,6 +85,18 @@ namespace CatsAreOnline {
             playerPartManager ? (Vector2)playerPartManager.GetCatCenter() : Vector2.zero;
 
         public Client() {
+            _receivingMessages = new Dictionary<DataType, Action<NetBuffer>> {
+                { DataType.RegisterPlayer, RegisterPlayerReceived },
+                { DataType.PlayerJoined, PlayerJoinedReceived },
+                { DataType.PlayerLeft, PlayerLeftReceived },
+                { DataType.PlayerChangedRoom, PlayerChangedRoomReceived },
+                { DataType.PlayerChangedControllingObject, PlayerChangedControllingObjectReceived },
+                { DataType.SyncedObjectAdded, SyncedObjectAddedReceived },
+                { DataType.SyncedObjectRemoved, SyncedObjectRemovedReceived },
+                { DataType.SyncedObjectChangedState, SyncedObjectChangedStateReceived },
+                { DataType.ChatMessage, ChatMessageReceived }
+            };
+            
             catState.client = this;
             
             NetPeerConfiguration config = new NetPeerConfiguration("mod.cgytrus.plugin.calOnline");
@@ -183,8 +201,9 @@ namespace CatsAreOnline {
             NetOutgoingMessage message = PrepareMessage(DataType.PlayerChangedRoom);
             message.Write(ownPlayer.room);
             SendMessageToServer(message, ReliableDeliveryMethod);
-            
-            SpawnCat();
+
+            catId = Guid.NewGuid();
+            SpawnObject(catId, SyncedObjectType.Cat, catState, true);
         }
 
         private void MessageReceived(NetIncomingMessage message) {
@@ -243,52 +262,46 @@ namespace CatsAreOnline {
             Chat.Chat.AddErrorMessage($"Disconnected from the server ({reason})");
         }
 
-        private void SpawnCat() {
-            _tempSpawnGuid = Guid.NewGuid();
-            NetOutgoingMessage createMessage = PrepareMessage(DataType.SyncedObjectAdded);
-            createMessage.Write((byte)SyncedObjectType.Cat);
-            createMessage.Write(_tempSpawnGuid.ToString());
-            createMessage.Write(catState);
-            SendMessageToServer(createMessage, ReliableDeliveryMethod);
+        public void SpawnObject(Guid id, SyncedObjectType type, SyncedObjectState state, bool switchControlling) {
+            _tempSpawnGuid = id;
+            NetOutgoingMessage message = PrepareMessage(DataType.SyncedObjectAdded);
+            message.Write((byte)type);
+            message.Write(_tempSpawnGuid.ToString());
+            state.Write(message);
+            SendMessageToServer(message, ReliableDeliveryMethod);
             _waitingForSpawn = true;
+            _switchControllingAfterSpawn = switchControlling;
+        }
+
+        public void RemoveObject(Guid id) {
+            NetOutgoingMessage message = PrepareMessage(DataType.SyncedObjectRemoved);
+            message.Write(id.ToString());
+            SendMessageToServer(message, ReliableDeliveryMethod);
+        }
+
+        public void ChangeControllingObject(Guid id) {
+            ownPlayer.controlling = id;
+            NetOutgoingMessage controllingMessage = PrepareMessage(DataType.PlayerChangedControllingObject);
+            controllingMessage.Write(id.ToString());
+            SendMessageToServer(controllingMessage, ReliableDeliveryMethod);
         }
 
         private void DataMessageReceived(NetBuffer message) {
-            DataType type = (DataType)message.ReadByte();
+            byte typeByte = message.ReadByte();
+            DataType type;
+            try {
+                type = (DataType)typeByte;
+            }
+            catch(Exception) {
+                Debug.Log($"[WARN] Unknown message type received: {typeByte.ToString()}");
+                return;
+            }
             
             debug.PrintServer(type);
 
-            switch(type) {
-                case DataType.RegisterPlayer:
-                    RegisterPlayerReceived(message);
-                    break;
-                case DataType.PlayerJoined:
-                    PlayerJoinedReceived(message);
-                    break;
-                case DataType.PlayerLeft:
-                    PlayerLeftReceived(message);
-                    break;
-                case DataType.PlayerChangedRoom:
-                    PlayerChangedRoomReceived(message);
-                    break;
-                case DataType.PlayerChangedControllingObject:
-                    PlayerChangedControllingObjectReceived(message);
-                    break;
-                case DataType.SyncedObjectAdded:
-                    SyncedObjectAddedReceived(message);
-                    break;
-                case DataType.SyncedObjectRemoved:
-                    SyncedObjectRemovedReceived(message);
-                    break;
-                case DataType.SyncedObjectChangedState:
-                    SyncedObjectChangedStateReceived(message);
-                    break;
-                case DataType.ChatMessage:
-                    ChatMessageReceived(message);
-                    break;
-                default:
-                    Debug.Log("[WARN] Unknown message type received");
-                    break;
+            if(_receivingMessages.TryGetValue(type, out Action<NetBuffer> action)) action(message);
+            else {
+                Debug.Log($"[WARN] Unknown message type received: {type.ToString()}");
             }
         }
 
@@ -318,8 +331,9 @@ namespace CatsAreOnline {
                 SyncedObject syncedObject = SyncedObject.Create(this, type, id, player, message);
                 syncedObjectRegistry.Add(syncedObject.id, syncedObject);
             }
-            
-            SpawnCat();
+
+            catId = Guid.NewGuid();
+            SpawnObject(catId, SyncedObjectType.Cat, catState, true);
         }
 
         private void PlayerJoinedReceived(NetBuffer message) {
@@ -403,10 +417,8 @@ namespace CatsAreOnline {
 
             if(!_waitingForSpawn || id != _tempSpawnGuid) return;
             _waitingForSpawn = false;
-            ownPlayer.controlling = id;
-            NetOutgoingMessage controllingMessage = PrepareMessage(DataType.PlayerChangedControllingObject);
-            controllingMessage.Write(id.ToString());
-            SendMessageToServer(controllingMessage, ReliableDeliveryMethod);
+            if(!_switchControllingAfterSpawn) return;
+            ChangeControllingObject(id);
         }
 
         private void SyncedObjectRemovedReceived(NetBuffer message) {
@@ -436,6 +448,8 @@ namespace CatsAreOnline {
             Vector3 playerPos = cat.transform.position;
             
             Text nameTag = cat.nameTag;
+            if(!nameTag) return;
+            
             float horTextExtent = nameTag.preferredWidth * 0.5f;
             float vertTextExtent = nameTag.preferredHeight;
 
