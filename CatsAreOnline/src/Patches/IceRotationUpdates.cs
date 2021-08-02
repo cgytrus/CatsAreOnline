@@ -11,7 +11,7 @@ namespace CatsAreOnline.Patches {
         [HarmonyPostfix]
         private static void UpdateIceRotation(Cat.CatControls __instance, GameObject ___currentCatIce) {
             if(__instance != PatchesClientProvider.client.playerControls || !___currentCatIce) return;
-            PatchesClientProvider.client.state.iceRotation = ___currentCatIce.transform.eulerAngles.z;
+            PatchesClientProvider.client.catState.rotation = ___currentCatIce.transform.eulerAngles.z;
         }
     }
 }

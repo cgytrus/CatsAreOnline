@@ -3,7 +3,11 @@
         RegisterPlayer,
         PlayerJoined,
         PlayerLeft,
-        PlayerChangedState,
+        PlayerChangedRoom,
+        PlayerChangedControllingObject,
+        SyncedObjectAdded,
+        SyncedObjectRemoved,
+        SyncedObjectChangedState,
         ChatMessage,
         Command
     }

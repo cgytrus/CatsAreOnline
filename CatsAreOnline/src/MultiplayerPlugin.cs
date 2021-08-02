@@ -38,7 +38,7 @@ namespace CatsAreOnline {
         private ConfigEntry<float> _messageFadeOutDelay;
         private ConfigEntry<float> _messageFadeOutSpeed;
         
-        private ConfigEntry<Player.InterpolationSettings.InterpolationMode> _interpolationMode;
+        private ConfigEntry<SyncedObject.InterpolationSettings.InterpolationMode> _interpolationMode;
         private ConfigEntry<double> _interpolationTime;
         private ConfigEntry<int> _interpolationPacketsToAverage;
         private ConfigEntry<double> _interpolationMaxTime;
@@ -76,7 +76,7 @@ namespace CatsAreOnline {
             _messageFadeOutSpeed = Config.Bind("Chat", "Message Fade Out Speed", 1f, "");
             
             _interpolationMode = Config.Bind("Advanced", "Interpolation Mode",
-                Player.InterpolationSettings.InterpolationMode.Lerp, "");
+                SyncedObject.InterpolationSettings.InterpolationMode.Lerp, "");
             _interpolationTime = Config.Bind("Advanced", "Interpolation Time", 3d, "");
             _interpolationPacketsToAverage = Config.Bind("Advanced", "Interpolation Packets To Average", 20, "");
             _interpolationMaxTime = Config.Bind("Advanced", "Interpolation Max Time", 10d, "");
@@ -84,7 +84,6 @@ namespace CatsAreOnline {
             connected.Value = false;
 
             _client = new Client();
-            _client.Initialize();
             PatchesClientProvider.client = _client;
 
             Commands.Initialize();
@@ -113,20 +112,20 @@ namespace CatsAreOnline {
             Chat.Chat.fadeOutSpeed = _messageFadeOutSpeed.Value;
             _messageFadeOutSpeed.SettingChanged += (_, __) => Chat.Chat.fadeOutSpeed = _messageFadeOutSpeed.Value;
 
-            Player.interpolationSettings = new Player.InterpolationSettings(_interpolationMode.Value,
+            SyncedObject.interpolationSettings = new SyncedObject.InterpolationSettings(_interpolationMode.Value,
                 _interpolationTime.Value, _interpolationPacketsToAverage.Value, _interpolationMaxTime.Value);
-            _interpolationMode.SettingChanged += (_, __) => Player.interpolationSettings =
-                new Player.InterpolationSettings(_interpolationMode.Value, Player.interpolationSettings.time,
-                    Player.interpolationSettings.packetsToAverage, Player.interpolationSettings.maxTime);
-            _interpolationTime.SettingChanged += (_, __) => Player.interpolationSettings =
-                new Player.InterpolationSettings(Player.interpolationSettings.mode, _interpolationTime.Value,
-                    Player.interpolationSettings.packetsToAverage, Player.interpolationSettings.maxTime);
-            _interpolationPacketsToAverage.SettingChanged += (_, __) => Player.interpolationSettings =
-                new Player.InterpolationSettings(Player.interpolationSettings.mode, Player.interpolationSettings.time,
-                    _interpolationPacketsToAverage.Value, Player.interpolationSettings.maxTime);
-            _interpolationMaxTime.SettingChanged += (_, __) => Player.interpolationSettings =
-                new Player.InterpolationSettings(Player.interpolationSettings.mode, Player.interpolationSettings.time,
-                    Player.interpolationSettings.packetsToAverage, _interpolationMaxTime.Value);
+            _interpolationMode.SettingChanged += (_, __) => SyncedObject.interpolationSettings =
+                new SyncedObject.InterpolationSettings(_interpolationMode.Value, SyncedObject.interpolationSettings.time,
+                    SyncedObject.interpolationSettings.packetsToAverage, SyncedObject.interpolationSettings.maxTime);
+            _interpolationTime.SettingChanged += (_, __) => SyncedObject.interpolationSettings =
+                new SyncedObject.InterpolationSettings(SyncedObject.interpolationSettings.mode, _interpolationTime.Value,
+                    SyncedObject.interpolationSettings.packetsToAverage, SyncedObject.interpolationSettings.maxTime);
+            _interpolationPacketsToAverage.SettingChanged += (_, __) => SyncedObject.interpolationSettings =
+                new SyncedObject.InterpolationSettings(SyncedObject.interpolationSettings.mode, SyncedObject.interpolationSettings.time,
+                    _interpolationPacketsToAverage.Value, SyncedObject.interpolationSettings.maxTime);
+            _interpolationMaxTime.SettingChanged += (_, __) => SyncedObject.interpolationSettings =
+                new SyncedObject.InterpolationSettings(SyncedObject.interpolationSettings.mode, SyncedObject.interpolationSettings.time,
+                    SyncedObject.interpolationSettings.packetsToAverage, _interpolationMaxTime.Value);
 
             CatPartManager.awake += (caller, args) => {
                 Cat.CatPartManager partManager = (Cat.CatPartManager)caller;
@@ -158,11 +157,14 @@ namespace CatsAreOnline {
             };
 
             CaLAPI.API.PauseScreen.roomInfoUpdated += (_, args) => {
-                _client.state.room = args.newRoom;
+                if(args.newRoom == _client.ownPlayer.room) return;
+                _client.ownPlayer.room = args.newRoom;
+                _client.UpdateRoom();
             };
 
             PauseScreen.pauseScreenExitAction += () => {
-                _client.state.room = null;
+                _client.ownPlayer.room = null;
+                _client.UpdateRoom();
             };
 
             CaLAPI.API.CanvasManager.awake += (_, args) => {
@@ -221,24 +223,24 @@ namespace CatsAreOnline {
         }
 
         private void FixedUpdate() {
-            if(Pipe.catInPipe) _client.state.scale = Client.GetScaleFromCatState(State.Liquid);
+            if(Pipe.catInPipe) _client.catState.scale = Client.GetScaleFromCatState(State.Liquid);
             else {
-                _client.state.scale = _scale;
-                _client.state.color = _color;
+                _client.catState.scale = _scale;
+                _client.catState.color = _color;
             }
-            _client.state.movementCatState = _state;
-            _client.state.position = _client.currentCatPosition;
+            _client.catState.movementCatState = _state;
+            _client.catState.position = _client.currentCatPosition;
             if(!_client.playerControls) return;
             bool ice = CurrentIceUpdates.currentIce;
-            _client.state.ice = ice;
+            _client.catState.ice = ice;
             if(ice) {
-                _client.state.color = _client.iceColor;
-                _client.state.scale = CurrentIceUpdates.currentIce.Size.y * 3.5f;
+                _client.catState.color = _client.iceColor;
+                _client.catState.scale = CurrentIceUpdates.currentIce.Size.y * 3.5f;
             }
             
-            if(_update) _client.SendStateDeltaToServer(_client.state);
+            if(_update) _client.SendStateDeltaToServer(_client.ownPlayer.controlling, _client.catState);
             _update = !_update;
-    }
+        }
 
         private void OnApplicationQuit() => SetConnected(false);
 

@@ -193,7 +193,7 @@ namespace CatsAreOnline {
             PrintCollection(source.playerRegistry.Values, page, player => {
             string displayName = $"{player.displayName} ";
             string username = printUsername ? $"({player.username}) " : "";
-            string room = string.IsNullOrWhiteSpace(player.state.room) ? "" : $": {player.state.room}";
+            string room = string.IsNullOrWhiteSpace(player.room) ? "" : $": {player.room}";
                 
             return $"{displayName}{username}{room}";
         });
@@ -207,27 +207,32 @@ namespace CatsAreOnline {
                 return;
             }
 
-            if(player.state.room != context.Source.state.room) {
+            if(!player.RoomEqual(context.Source.ownPlayer)) {
                 Chat.Chat.AddErrorMessage(
                     $"Invalid argument <b>0</b> (player <b>{username}</b> is in a different room)");
                 return;
             }
             
-            context.Source.playerPartManager.MoveCat(player.transform.position);
-            Chat.Chat.AddMessage($"Teleported <b>{context.Source.displayName}</b> to <b>{player.displayName}</b>");
+            context.Source.playerPartManager.MoveCat(context.Source.syncedObjectRegistry[player.controlling].transform
+                .position);
+            Chat.Chat.AddMessage(
+                $"Teleported <b>{context.Source.ownPlayer.displayName}</b> to <b>{player.displayName}</b>");
         }
         
         private static void TeleportCommand(CommandContext<Client> context, Vector2 position) {
             context.Source.playerPartManager.MoveCat(position);
-            Chat.Chat.AddMessage($"Teleported <b>{context.Source.displayName}</b> to <b>{position.ToString()}</b>");
+            Chat.Chat.AddMessage(
+                $"Teleported <b>{context.Source.ownPlayer.displayName}</b> to <b>{position.ToString()}</b>");
         }
 
         private static void SpectateCommand(CommandContext<Client> context) {
             Player player = context.Source.spectating;
             if(player == null) return;
 
-            FollowPlayer.followPlayerHead = player.restoreFollowPlayerHead;
-            FollowPlayer.customFollowTarget = player.restoreFollowTarget;
+            FollowPlayer.followPlayerHead =
+                context.Source.syncedObjectRegistry[player.controlling].restoreFollowPlayerHead;
+            FollowPlayer.customFollowTarget =
+                context.Source.syncedObjectRegistry[player.controlling].restoreFollowTarget;
             context.Source.spectating = null;
             Chat.Chat.AddMessage($"Stopped spectating <b>{player.username}</b>");
         }
@@ -241,22 +246,24 @@ namespace CatsAreOnline {
                 return;
             }
 
-            if(player.username == context.Source.username) {
+            if(player.username == context.Source.ownPlayer.username) {
                 Chat.Chat.AddErrorMessage("Invalid argument <b>0</b> (can't spectate yourself)");
                 return;
             }
 
-            if(player.state.room != context.Source.state.room) {
+            if(!player.RoomEqual(context.Source.ownPlayer)) {
                 Chat.Chat.AddErrorMessage(
                     $"Invalid argument <b>0</b> (player <b>{username}</b> is in a different room)");
                 return;
             }
 
             context.Source.spectating = player;
-            player.restoreFollowPlayerHead = FollowPlayer.followPlayerHead;
-            player.restoreFollowTarget = FollowPlayer.customFollowTarget;
+            context.Source.syncedObjectRegistry[player.controlling].restoreFollowPlayerHead =
+                FollowPlayer.followPlayerHead;
+            context.Source.syncedObjectRegistry[player.controlling].restoreFollowTarget =
+                FollowPlayer.customFollowTarget;
             FollowPlayer.followPlayerHead = false;
-            FollowPlayer.customFollowTarget = player.transform;
+            FollowPlayer.customFollowTarget = context.Source.syncedObjectRegistry[player.controlling].transform;
             Chat.Chat.AddMessage($"Spectating <b>{player.displayName}</b>");
         }
     }

@@ -15,11 +15,12 @@ namespace CatsAreOnlineServer {
         public const string Version = "0.3.0";
         public static TimeSpan targetTickTime { get; } = TimeSpan.FromSeconds(0.01d);
         
-        private const NetDeliveryMethod GlobalDeliveryMethod = NetDeliveryMethod.UnreliableSequenced;
-        private const NetDeliveryMethod LessReliableDeliveryMethod = NetDeliveryMethod.ReliableSequenced;
-        private const NetDeliveryMethod ReliableDeliveryMethod = NetDeliveryMethod.ReliableOrdered;
+        public const NetDeliveryMethod GlobalDeliveryMethod = NetDeliveryMethod.UnreliableSequenced;
+        public const NetDeliveryMethod LessReliableDeliveryMethod = NetDeliveryMethod.ReliableSequenced;
+        public const NetDeliveryMethod ReliableDeliveryMethod = NetDeliveryMethod.ReliableOrdered;
 
         public static readonly Dictionary<Guid, Player> playerRegistry = new();
+        public static readonly Dictionary<Guid, SyncedObject> syncedObjectRegistry = new();
         
         private static NetServer _server;
         private static readonly List<NetConnection> tempConnections = new();
@@ -128,23 +129,41 @@ namespace CatsAreOnlineServer {
         }
 
         private static void DataMessageReceived(NetIncomingMessage message) {
-            DataType type = (DataType)message.ReadByte();
+            byte typeByte = message.ReadByte();
+            DataType type;
+            try {
+                type = (DataType)typeByte;
+            }
+            catch(Exception) {
+                string typeByteStr = typeByte.ToString(CultureInfo.InvariantCulture);
+                Console.WriteLine($"[WARN] Unknown message type received (${typeByteStr})");
+                return;
+            }
 
             switch(type) {
                 case DataType.RegisterPlayer:
                     RegisterPlayerReceived(message);
                     break;
-                case DataType.PlayerChangedState:
-                    PlayerChangedStateReceived(message);
+                case DataType.PlayerChangedRoom:
+                    PlayerChangedRoomReceived(message);
+                    break;
+                case DataType.PlayerChangedControllingObject:
+                    PlayerChangedControllingObjectReceived(message);
+                    break;
+                case DataType.SyncedObjectAdded:
+                    SyncedObjectAddedReceived(message);
+                    break;
+                case DataType.SyncedObjectRemoved:
+                    SyncedObjectRemovedReceived(message);
+                    break;
+                case DataType.SyncedObjectChangedState:
+                    SyncedObjectChangedStateReceived(message);
                     break;
                 case DataType.ChatMessage:
                     ChatMessageReceived(message);
                     break;
                 case DataType.Command:
                     CommandReceived(message);
-                    break;
-                default:
-                    Console.WriteLine("[WARN] Unknown message type received");
                     break;
             }
         }
@@ -159,13 +178,13 @@ namespace CatsAreOnlineServer {
 
             Guid guid = Guid.NewGuid();
             if(playerRegistry.ContainsKey(guid)) {
-                message.SenderConnection.Disconnect("GUID already taken");
+                message.SenderConnection.Disconnect("GUID already taken, try reconnecting.");
                 Console.WriteLine($"Could not register player {username} @ {ip} (GUID already taken)");
                 return;
             }
 
             if(playerRegistry.Any(ply => ply.Value.username == username)) {
-                message.SenderConnection.Disconnect("Username already taken");
+                message.SenderConnection.Disconnect("Username already taken.");
                 Console.WriteLine($"Could not register player {username} @ {ip} (Username already taken)");
                 return;
             }
@@ -175,16 +194,8 @@ namespace CatsAreOnlineServer {
                 id = guid,
                 username = username,
                 displayName = message.ReadString(),
-                posX = message.ReadFloat(),
-                posY = message.ReadFloat(),
                 room = message.ReadString(),
-                colorR = message.ReadFloat(),
-                colorG = message.ReadFloat(),
-                colorB = message.ReadFloat(),
-                colorA = message.ReadFloat(),
-                scale = message.ReadFloat(),
-                ice = message.ReadBoolean(),
-                iceRotation = message.ReadFloat()
+                controlling = Guid.Parse(message.ReadString())
             };
             playerRegistry.Add(guid, player);
             
@@ -194,97 +205,111 @@ namespace CatsAreOnlineServer {
             secretMessage.Write(playerRegistry.Count - 1);
             foreach((Guid regGuid, Player regPlayer) in playerRegistry) {
                 if(regGuid == guid) continue;
-                secretMessage.Write(regPlayer);
+                regPlayer.Write(secretMessage);
             }
+            secretMessage.Write(syncedObjectRegistry.Count - 1);
+            foreach((Guid _, SyncedObject syncedObject) in syncedObjectRegistry) syncedObject.Write(secretMessage);
 
             _server.SendMessage(secretMessage, message.SenderConnection, ReliableDeliveryMethod);
             
             // notifies all the players about the joined player
             NetOutgoingMessage notifyMessage = _server.CreateMessage();
             notifyMessage.Write((byte)DataType.PlayerJoined);
-            notifyMessage.Write(player);
+            player.Write(notifyMessage);
             _server.SendToAll(notifyMessage, ReliableDeliveryMethod);
         }
 
-        private static void PlayerChangedStateReceived(NetBuffer message) {
+        private static void PlayerChangedRoomReceived(NetBuffer message) {
             (Player player, bool registered) = GetClientData(message);
             if(!registered) return;
             
+            string room = message.ReadString();
+
+            if(!player.RoomEqual(room)) {
+                List<Guid> toRemove = (from syncedObject in syncedObjectRegistry
+                                              where syncedObject.Value.owner.username == player.username
+                                              select syncedObject.Key).ToList();
+                foreach(Guid id in toRemove) syncedObjectRegistry.Remove(id);
+            }
+
+            player.room = room;
+            
+            LogPlayerAction(player, $"changed room to {room}");
+            
+            NetOutgoingMessage notifyMessage = _server.CreateMessage();
+            notifyMessage.Write((byte)DataType.PlayerChangedRoom);
+            notifyMessage.Write(player.username);
+            notifyMessage.Write(player.room);
+            _server.SendToAll(notifyMessage, ReliableDeliveryMethod);
+        }
+
+        private static void PlayerChangedControllingObjectReceived(NetBuffer message) {
+            (Player player, bool registered) = GetClientData(message);
+            if(!registered) return;
+
+            player.controlling = Guid.Parse(message.ReadString());
+            
+            NetOutgoingMessage notifyMessage = _server.CreateMessage();
+            notifyMessage.Write((byte)DataType.PlayerChangedControllingObject);
+            notifyMessage.Write(player.username);
+            notifyMessage.Write(player.controlling.ToString());
+            _server.SendToAll(notifyMessage, ReliableDeliveryMethod);
+        }
+        
+        private static void SyncedObjectAddedReceived(NetBuffer message) {
+            (Player player, bool registered) = GetClientData(message);
+            if(!registered) return;
+
+            SyncedObjectType type = (SyncedObjectType)message.ReadByte();
+            Guid id = Guid.Parse(message.ReadString());
+            SyncedObject syncedObject = SyncedObject.Create(type, id, player, message);
+            syncedObjectRegistry.Add(id, syncedObject);
+
+            NetOutgoingMessage notifyMessage = _server.CreateMessage();
+            notifyMessage.Write((byte)DataType.SyncedObjectAdded);
+            syncedObject.Write(notifyMessage);
+            _server.SendToAll(notifyMessage, ReliableDeliveryMethod);
+        }
+
+        private static void SyncedObjectRemovedReceived(NetBuffer message) {
+            (Player player, bool registered) = GetClientData(message);
+            if(!registered) return;
+            
+            Guid id = Guid.Parse(message.ReadString());
+            if(!syncedObjectRegistry.TryGetValue(id, out SyncedObject syncedObject)) return;
+            if(syncedObject.owner != player) return;
+
+            syncedObjectRegistry.Remove(id);
+            
+            NetOutgoingMessage notifyMessage = _server.CreateMessage();
+            notifyMessage.Write((byte)DataType.SyncedObjectRemoved);
+            notifyMessage.Write(id.ToString());
+            _server.SendToAll(notifyMessage, ReliableDeliveryMethod);
+        }
+
+        private static void SyncedObjectChangedStateReceived(NetBuffer message) {
+            (Player player, bool registered) = GetClientData(message);
+            if(!registered) return;
+
+            Guid id = Guid.Parse(message.ReadString());
+            if(!syncedObjectRegistry.TryGetValue(id, out SyncedObject syncedObject)) return;
+            if(syncedObject.owner != player) return;
+
             NetOutgoingMessage notifyMessage = null;
             NetDeliveryMethod deliveryMethod = GlobalDeliveryMethod;
-            bool sendToAll = false;
 
             while(message.ReadByte(out byte stateTypeByte)) {
                 if(notifyMessage == null) {
                     notifyMessage = _server.CreateMessage();
-                    notifyMessage.Write((byte)DataType.PlayerChangedState);
-                    notifyMessage.Write(player.username);
+                    notifyMessage.Write((byte)DataType.SyncedObjectChangedState);
+                    notifyMessage.Write(syncedObject.id.ToString());
                 }
                 
-                ReadPlayerChangedState(message, notifyMessage, player, stateTypeByte, ref sendToAll,
-                    ref deliveryMethod);
+                syncedObject.ReadChangedState(message, notifyMessage, stateTypeByte, ref deliveryMethod);
             }
 
             if(notifyMessage == null) return;
-            if(sendToAll) _server.SendToAll(notifyMessage, deliveryMethod);
-            else SendToAllInCurrentRoom(player, notifyMessage, deliveryMethod);
-        }
-        
-        private static void ReadPlayerChangedState(NetBuffer message, NetBuffer notifyMessage, Player player,
-            byte stateTypeByte, ref bool sendToAll, ref NetDeliveryMethod deliveryMethod) {
-            Player.StateType stateType = (Player.StateType)stateTypeByte;
-            switch(stateType) {
-                case Player.StateType.Position:
-                    player.posX = message.ReadFloat();
-                    player.posY = message.ReadFloat();
-                    notifyMessage.Write(stateTypeByte);
-                    notifyMessage.Write(player.posX);
-                    notifyMessage.Write(player.posY);
-                    SetDeliveryMethod(GlobalDeliveryMethod, ref deliveryMethod);
-                    break;
-                case Player.StateType.Room:
-                    player.room = message.ReadString();
-                    LogPlayerAction(player, $"changed room to {player.room}");
-                    notifyMessage.Write(stateTypeByte);
-                    notifyMessage.Write(player.room);
-                    SetDeliveryMethod(LessReliableDeliveryMethod, ref deliveryMethod);
-                    sendToAll = true;
-                    break;
-                case Player.StateType.Color:
-                    player.colorR = message.ReadFloat();
-                    player.colorG = message.ReadFloat();
-                    player.colorB = message.ReadFloat();
-                    player.colorA = message.ReadFloat();
-                    notifyMessage.Write(stateTypeByte);
-                    notifyMessage.Write(player.colorR);
-                    notifyMessage.Write(player.colorG);
-                    notifyMessage.Write(player.colorB);
-                    notifyMessage.Write(player.colorA);
-                    SetDeliveryMethod(LessReliableDeliveryMethod, ref deliveryMethod);
-                    break;
-                case Player.StateType.Scale:
-                    player.scale = message.ReadFloat();
-                    notifyMessage.Write(stateTypeByte);
-                    notifyMessage.Write(player.scale);
-                    SetDeliveryMethod(LessReliableDeliveryMethod, ref deliveryMethod);
-                    break;
-                case Player.StateType.Ice:
-                    player.ice = message.ReadBoolean();
-                    notifyMessage.Write(stateTypeByte);
-                    notifyMessage.Write(player.ice);
-                    SetDeliveryMethod(LessReliableDeliveryMethod, ref deliveryMethod);
-                    break;
-                case Player.StateType.IceRotation:
-                    player.iceRotation = message.ReadFloat();
-                    notifyMessage.Write(stateTypeByte);
-                    notifyMessage.Write(player.iceRotation);
-                    SetDeliveryMethod(GlobalDeliveryMethod, ref deliveryMethod);
-                    break;
-            }
-        }
-        
-        private static void SetDeliveryMethod(NetDeliveryMethod method, ref NetDeliveryMethod deliveryMethod) {
-            if(method > deliveryMethod) deliveryMethod = method;
+            SendToAllInCurrentRoom(player, notifyMessage, deliveryMethod);
         }
 
         private static void ChatMessageReceived(NetBuffer message) {
@@ -293,7 +318,7 @@ namespace CatsAreOnlineServer {
 
             string text = message.ReadString();
 
-            Console.WriteLine($"[{player.username} ({player.ip} | {player.id.ToString()})] {text}");
+            Console.WriteLine($"[{player.username} ({player.id.ToString()})] {text}");
 
             NetOutgoingMessage resendMessage = _server.CreateMessage();
             resendMessage.Write((byte)DataType.ChatMessage);
@@ -321,11 +346,12 @@ namespace CatsAreOnlineServer {
             }
         }
 
+        // ReSharper disable once SuggestBaseTypeForParameter
         private static void SendToAllInCurrentRoom(Player fromPlayer, NetOutgoingMessage message, NetDeliveryMethod method) {
             tempConnections.Clear();
             // ReSharper disable once ForeachCanBePartlyConvertedToQueryUsingAnotherGetEnumerator
             foreach((Guid _, Player player) in playerRegistry) {
-                if(player.room != fromPlayer.room) continue;
+                if(!player.RoomEqual(fromPlayer)) continue;
                 tempConnections.Add(player.connection);
             }
             _server.SendMessage(message, tempConnections, method, 0);
@@ -351,10 +377,10 @@ namespace CatsAreOnlineServer {
             Guid.TryParse(message.ReadString(), out Guid guid) && playerRegistry.TryGetValue(guid, out Player player) ?
                 (player, true) : (null, false);
 
-        private static void LogPlayerAction(Player player, string action) =>
-            LogPlayerAction(player.ip.ToString(), player.id.ToString(), player.username, action);
+        public static void LogPlayerAction(Player player, string action) =>
+            LogPlayerAction(player.id.ToString(), player.username, action);
 
-        private static void LogPlayerAction(string ip, string guid, string username, string action) =>
-            Console.WriteLine($"Player {username} ({ip} | {guid}) {action}");
+        public static void LogPlayerAction(string id, string username, string action) =>
+            Console.WriteLine($"Player {username} ({id}) {action}");
     }
 }

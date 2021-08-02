@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using Cat;
 
@@ -9,8 +10,6 @@ using Lidgren.Network;
 
 using UnityEngine;
 using UnityEngine.UI;
-
-using Object = UnityEngine.Object;
 
 namespace CatsAreOnline {
     public class Client {
@@ -28,8 +27,9 @@ namespace CatsAreOnline {
             get => _displayOwnCat;
             set {
                 _displayOwnCat = value;
-                if(username != null && playerRegistry.TryGetValue(username, out Player player))
-                    player.renderer.enabled = _displayOwnCat;
+                // ReSharper disable once ForeachCanBePartlyConvertedToQueryUsingAnotherGetEnumerator
+                foreach(KeyValuePair<Guid, SyncedObject> syncedObject in syncedObjectRegistry)
+                    syncedObject.Value.UpdateRoom();
             }
         }
 
@@ -37,8 +37,9 @@ namespace CatsAreOnline {
             get => _playerCollisions;
             set {
                 _playerCollisions = value;
-                foreach(Player player in playerRegistry.Values)
-                    player.collider.enabled = player.username != username && _playerCollisions;
+                // ReSharper disable once ForeachCanBePartlyConvertedToQueryUsingAnotherGetEnumerator
+                foreach(KeyValuePair<Guid, SyncedObject> syncedObject in syncedObjectRegistry)
+                    syncedObject.Value.UpdateRoom();
             }
         }
 
@@ -52,12 +53,13 @@ namespace CatsAreOnline {
         public bool canConnect => playerPartManager && playerControls && catSprite && iceSprite && nameTags &&
                                          nameTagFont && nameTagCamera;
 
-        public string username { get; private set; }
-        public string displayName { get; private set; }
-        public PlayerState state { get; } = new PlayerState();
+        public Player ownPlayer { get; private set; } =
+            new Player(null, null, null, Guid.Empty);
+        public CatSyncedObjectState catState { get; } = new CatSyncedObjectState();
         public Player spectating { get; set; }
         
         public readonly Dictionary<string, Player> playerRegistry = new Dictionary<string, Player>();
+        public readonly Dictionary<Guid, SyncedObject> syncedObjectRegistry = new Dictionary<Guid, SyncedObject>();
 
         public readonly ClientDebug debug = new ClientDebug();
 
@@ -68,13 +70,16 @@ namespace CatsAreOnline {
         private NetClient _client;
         private readonly Vector2 _nameTagOffset = Vector2.up;
 
+        private Guid _tempSpawnGuid;
+        private bool _waitingForSpawn;
+
         public Vector2 currentCatPosition => inJunction ? junctionPosition :
             (FollowPlayer.customFollowTarget || Boiler.PlayerBoilerCounter > 0) && spectating == null ?
             (Vector2)FollowPlayer.LookAt.position :
             playerPartManager ? (Vector2)playerPartManager.GetCatCenter() : Vector2.zero;
 
-        public void Initialize() {
-            state.client = this;
+        public Client() {
+            catState.client = this;
             
             NetPeerConfiguration config = new NetPeerConfiguration("mod.cgytrus.plugin.calOnline");
             
@@ -94,10 +99,11 @@ namespace CatsAreOnline {
 
         public void Connect(string ip, int port, string username, string displayName) {
             if(_client.ConnectionStatus == NetConnectionStatus.Connected) Disconnect();
-                
-            this.username = string.IsNullOrWhiteSpace(username) ? "<Unknown>" : username;
-            this.displayName = string.IsNullOrWhiteSpace(displayName) ? username : displayName;
-            
+
+            username = string.IsNullOrWhiteSpace(username) ? "<Unknown>" : username;
+            displayName = string.IsNullOrWhiteSpace(displayName) ? username : displayName;
+            ownPlayer = new Player(username, displayName, ownPlayer.room, ownPlayer.controlling);
+
             _client.Connect(ip, port);
         }
 
@@ -115,12 +121,15 @@ namespace CatsAreOnline {
         }
 
         public void UpdateAllNameTagsPositions() {
-            foreach(KeyValuePair<string, Player> player in playerRegistry)
-                UpdateNameTagPosition(player.Value);
+            foreach(KeyValuePair<Guid, SyncedObject> syncedObject in syncedObjectRegistry)
+                UpdateNameTagPosition(syncedObject.Value);
         }
 
         public void SendChatMessage(string text) {
-            if(_client.ConnectionStatus != NetConnectionStatus.Connected) return;
+            if(_client.ConnectionStatus != NetConnectionStatus.Connected) {
+                Chat.Chat.AddErrorMessage("Not connected to a server");
+                return;
+            }
             
             NetOutgoingMessage message = _client.CreateMessage();
             message.Write((byte)DataType.ChatMessage);
@@ -159,18 +168,23 @@ namespace CatsAreOnline {
             }
         }
 
-        public void SendStateDeltaToServer(PlayerState state) {
+        public void SendStateDeltaToServer(Guid id, SyncedObjectState state) {
             if(_client.ConnectionStatus != NetConnectionStatus.Connected || !state.anythingChanged) return;
 
-            NetOutgoingMessage message = PrepareMessage(DataType.PlayerChangedState);
+            NetOutgoingMessage message = PrepareMessage(DataType.SyncedObjectChangedState);
+            message.Write(id.ToString());
             state.WriteDeltaToMessage(message);
             SendMessageToServer(message, state.deliveryMethod);
         }
 
-        public void RoomChanged() {
-            foreach(KeyValuePair<string, Player> player in playerRegistry) {
-                player.Value.SetRoom(player.Value.state.room, state.room);
-            }
+        public void UpdateRoom() {
+            if(_client.ConnectionStatus != NetConnectionStatus.Connected) return;
+
+            NetOutgoingMessage message = PrepareMessage(DataType.PlayerChangedRoom);
+            message.Write(ownPlayer.room);
+            SendMessageToServer(message, ReliableDeliveryMethod);
+            
+            SpawnCat();
         }
 
         private void MessageReceived(NetIncomingMessage message) {
@@ -214,9 +228,7 @@ namespace CatsAreOnline {
             NetOutgoingMessage message = _client.CreateMessage();
             message.Write((byte)DataType.RegisterPlayer);
             message.Write(""); // send an empty guid because we don't have one yet
-            message.Write(username);
-            message.Write(displayName);
-            message.Write(state);
+            ownPlayer.Write(message);
             SendMessageToServer(message, ReliableDeliveryMethod);
         }
         
@@ -224,9 +236,21 @@ namespace CatsAreOnline {
             Debug.Log("[CaO] Disconnected from the server");
             MultiplayerPlugin.connected.Value = false;
             _guid = null;
-            foreach(KeyValuePair<string, Player> player in playerRegistry) RemovePlayer(player.Value);
+            foreach(KeyValuePair<Guid, SyncedObject> syncedObject in syncedObjectRegistry)
+                syncedObject.Value.Remove();
+            syncedObjectRegistry.Clear();
             playerRegistry.Clear();
-            Chat.Chat.AddMessage($"Disconnected from the server ({reason})");
+            Chat.Chat.AddErrorMessage($"Disconnected from the server ({reason})");
+        }
+
+        private void SpawnCat() {
+            _tempSpawnGuid = Guid.NewGuid();
+            NetOutgoingMessage createMessage = PrepareMessage(DataType.SyncedObjectAdded);
+            createMessage.Write((byte)SyncedObjectType.Cat);
+            createMessage.Write(_tempSpawnGuid.ToString());
+            createMessage.Write(catState);
+            SendMessageToServer(createMessage, ReliableDeliveryMethod);
+            _waitingForSpawn = true;
         }
 
         private void DataMessageReceived(NetBuffer message) {
@@ -244,8 +268,20 @@ namespace CatsAreOnline {
                 case DataType.PlayerLeft:
                     PlayerLeftReceived(message);
                     break;
-                case DataType.PlayerChangedState:
-                    PlayerChangedStateReceived(message);
+                case DataType.PlayerChangedRoom:
+                    PlayerChangedRoomReceived(message);
+                    break;
+                case DataType.PlayerChangedControllingObject:
+                    PlayerChangedControllingObjectReceived(message);
+                    break;
+                case DataType.SyncedObjectAdded:
+                    SyncedObjectAddedReceived(message);
+                    break;
+                case DataType.SyncedObjectRemoved:
+                    SyncedObjectRemovedReceived(message);
+                    break;
+                case DataType.SyncedObjectChangedState:
+                    SyncedObjectChangedStateReceived(message);
                     break;
                 case DataType.ChatMessage:
                     ChatMessageReceived(message);
@@ -258,16 +294,37 @@ namespace CatsAreOnline {
 
         private void RegisterPlayerReceived(NetBuffer message) {
             _guid = message.ReadString();
-            int count = message.ReadInt32();
-            for(int i = 0; i < count; ++i) {
-                Player player = SpawnPlayer(message);
+            
+            int playerCount = message.ReadInt32();
+            for(int i = 0; i < playerCount; i++) {
+                Player player = new Player(message.ReadString(), message.ReadString(), message.ReadString(),
+                    Guid.Parse(message.ReadString()));
                 Debug.Log($"[CaO] Registering player {player.username}");
                 playerRegistry.Add(player.username, player);
             }
+
+            int syncedObjectCount = message.ReadInt32();
+            for(int i = 0; i < syncedObjectCount; i++) {
+                string username = message.ReadString();
+                SyncedObjectType type = (SyncedObjectType)message.ReadByte();
+                Guid id = Guid.Parse(message.ReadString());
+                if(!playerRegistry.TryGetValue(username, out Player player)) { // this should never happen
+                    // skip the next data, as it's useless since we can't create the object
+                    // because its owner doesn't exist (how?????)
+                    SyncedObject.Create(this, type, id, null, message).Remove();
+                    continue;
+                }
+
+                SyncedObject syncedObject = SyncedObject.Create(this, type, id, player, message);
+                syncedObjectRegistry.Add(syncedObject.id, syncedObject);
+            }
+            
+            SpawnCat();
         }
 
         private void PlayerJoinedReceived(NetBuffer message) {
-            Player player = SpawnPlayer(message);
+            Player player = new Player(message.ReadString(), message.ReadString(), message.ReadString(),
+                Guid.Parse(message.ReadString()));
             Debug.Log($"[CaO] Registering player {player.username}");
             playerRegistry.Add(player.username, player);
             Chat.Chat.AddMessage($"Player {player.displayName} joined");
@@ -275,119 +332,110 @@ namespace CatsAreOnline {
         
         private void PlayerLeftReceived(NetBuffer message) {
             string username = message.ReadString();
+            if(!playerRegistry.TryGetValue(username, out Player player)) return;
             
-            Debug.Log($"[CaO] Player {playerRegistry[username].username} left");
-            Chat.Chat.AddMessage($"Player {playerRegistry[username].displayName} left");
-            
-            RemovePlayer(playerRegistry[username]);
+            Debug.Log($"[CaO] Player {player.username} left");
+            Chat.Chat.AddMessage($"Player {player.displayName} left");
+
+            if(spectating.username == username) {
+                spectating = null;
+                Chat.Chat.AddMessage($"Stopped spectating <b>{username}</b> (player left)");
+            }
+
+            List<Guid> toRemove = (from syncedObject in syncedObjectRegistry
+                                          where syncedObject.Value.owner.username == username select syncedObject.Key)
+                .ToList();
+            foreach(Guid id in toRemove) {
+                syncedObjectRegistry[id].Remove();
+                syncedObjectRegistry.Remove(id);
+            }
             playerRegistry.Remove(username);
         }
-        
-        private void PlayerChangedStateReceived(NetBuffer message) {
+
+        private void PlayerChangedRoomReceived(NetBuffer message) {
             string username = message.ReadString();
-            Player player = playerRegistry[username];
-            while(message.ReadByte(out byte stateTypeByte)) {
-                PlayerState.Type stateType = (PlayerState.Type)stateTypeByte;
-                switch(stateType) {
-                    case PlayerState.Type.Position:
-                        player.SetPosition(message.ReadVector2());
-                        break;
-                    case PlayerState.Type.Room:
-                        player.SetRoom(message.ReadString(), state.room);
-                        break;
-                    case PlayerState.Type.Color:
-                        player.SetColor(message.ReadColor());
-                        break;
-                    case PlayerState.Type.Scale:
-                        player.SetScale(message.ReadFloat());
-                        break;
-                    case PlayerState.Type.Ice:
-                        player.SetIce(message.ReadBoolean());
-                        break;
-                    case PlayerState.Type.IceRotation:
-                        player.SetIceRotation(message.ReadFloat());
-                        break;
+            if(!playerRegistry.TryGetValue(username, out Player player)) return;
+
+            string room = message.ReadString();
+
+            if(!player.RoomEqual(room)) {
+                List<Guid> toRemove = (from syncedObject in syncedObjectRegistry
+                                              where syncedObject.Value.owner.username == player.username
+                                              select syncedObject.Key).ToList();
+                foreach(Guid id in toRemove) {
+                    syncedObjectRegistry[id].Remove();
+                    syncedObjectRegistry.Remove(id);
                 }
             }
+
+            player.room = room;
+        }
+
+        private void PlayerChangedControllingObjectReceived(NetBuffer message) {
+            string username = message.ReadString();
+            if(!playerRegistry.TryGetValue(username, out Player player)) return;
+
+            Guid controlling = Guid.Parse(message.ReadString());
+            
+            if(spectating == player) {
+                syncedObjectRegistry[controlling].restoreFollowPlayerHead =
+                    syncedObjectRegistry[player.controlling].restoreFollowPlayerHead;
+                syncedObjectRegistry[controlling].restoreFollowTarget =
+                    syncedObjectRegistry[player.controlling].restoreFollowTarget;
+                FollowPlayer.followPlayerHead = false;
+                FollowPlayer.customFollowTarget = syncedObjectRegistry[controlling].transform;
+            }
+
+            player.controlling = controlling;
+        }
+
+        private void SyncedObjectAddedReceived(NetBuffer message) {
+            string username = message.ReadString();
+            if(!playerRegistry.TryGetValue(username, out Player player)) return;
+            
+            SyncedObjectType type = (SyncedObjectType)message.ReadByte();
+            Guid id = Guid.Parse(message.ReadString());
+
+            if(syncedObjectRegistry.ContainsKey(id)) return;
+            
+            SyncedObject syncedObject = SyncedObject.Create(this, type, id, player, message);
+            syncedObjectRegistry.Add(id, syncedObject);
+
+            if(!_waitingForSpawn || id != _tempSpawnGuid) return;
+            _waitingForSpawn = false;
+            ownPlayer.controlling = id;
+            NetOutgoingMessage controllingMessage = PrepareMessage(DataType.PlayerChangedControllingObject);
+            controllingMessage.Write(id.ToString());
+            SendMessageToServer(controllingMessage, ReliableDeliveryMethod);
+        }
+
+        private void SyncedObjectRemovedReceived(NetBuffer message) {
+            Guid id = Guid.Parse(message.ReadString());
+            syncedObjectRegistry[id].Remove();
+            syncedObjectRegistry.Remove(id);
+        }
+        
+        private void SyncedObjectChangedStateReceived(NetBuffer message) {
+            Guid id = Guid.Parse(message.ReadString());
+            if(!syncedObjectRegistry.TryGetValue(id, out SyncedObject syncedObject)) return;
+
+            while(message.ReadByte(out byte stateTypeByte)) syncedObject.ReadChangedState(message, stateTypeByte);
         }
 
         private void ChatMessageReceived(NetBuffer message) {
             string username = message.ReadString();
+            if(!playerRegistry.TryGetValue(username, out Player player)) return;
             
-            Player player = playerRegistry[username];
             string text = message.ReadString();
 
             Debug.Log($"[{player.username} ({username})] {text}");
             Chat.Chat.AddMessage($"[{player.displayName}] {text}");
         }
-        
-        private Player SpawnPlayer(NetBuffer message) => SpawnPlayer(message.ReadString(), message.ReadString(),
-            message.ReadVector2(), message.ReadString(), message.ReadColor(), message.ReadFloat(),
-            message.ReadBoolean(), message.ReadFloat());
 
-        private Player SpawnPlayer(string username, string displayName, Vector2 position, string room,
-            Color color, float scale, bool ice, float iceRotation) {
-            GameObject obj = new GameObject($"OnlinePlayer_{username}") { layer = 0 };
-            Object.DontDestroyOnLoad(obj);
-
-            SpriteRenderer renderer = obj.AddComponent<SpriteRenderer>();
-            renderer.sortingOrder = -50;
-
-            Rigidbody2D rigidbody = obj.AddComponent<Rigidbody2D>();
-            rigidbody.bodyType = RigidbodyType2D.Kinematic;
-            rigidbody.interpolation = RigidbodyInterpolation2D.Extrapolate;
-            rigidbody.useFullKinematicContacts = true;
-
-            CircleCollider2D collider = obj.AddComponent<CircleCollider2D>();
-            collider.radius = 0.4f;
+        private void UpdateNameTagPosition(SyncedObject cat) {
+            Vector3 playerPos = cat.transform.position;
             
-            Player player = obj.AddComponent<Player>();
-            player.state.client = this;
-            player.username = username;
-            player.displayName = displayName;
-            player.nameTag = CreatePlayerNameTag(username, displayName);
-            player.renderer = renderer;
-            player.rigidbody = rigidbody;
-            player.collider = collider;
-            
-            player.SetPosition(position);
-            player.SetRoom(room, state.room);
-            player.SetColor(color);
-            player.SetScale(scale);
-            player.SetIce(ice);
-            player.SetIceRotation(iceRotation);
-            
-            return player;
-        }
-
-        private Text CreatePlayerNameTag(string username, string displayName) {
-            GameObject nameTag = new GameObject($"OnlinePlayerNameTag_{username}") {
-                layer = LayerMask.NameToLayer("UI")
-            };
-            Object.DontDestroyOnLoad(nameTag);
-
-            RectTransform nameTagTransform = nameTag.AddComponent<RectTransform>();
-            nameTagTransform.SetParent(nameTags);
-            nameTagTransform.sizeDelta = new Vector2(200f, 30f);
-            nameTagTransform.pivot = new Vector2(0.5f, 0f);
-            nameTagTransform.localScale = Vector3.one;
-            
-            Text nameTagText = nameTag.AddComponent<Text>();
-            nameTagText.font = nameTagFont;
-            nameTagText.fontSize = 28;
-            nameTagText.alignment = TextAnchor.LowerCenter;
-            nameTagText.horizontalOverflow = HorizontalWrapMode.Overflow;
-            nameTagText.verticalOverflow = VerticalWrapMode.Overflow;
-            nameTagText.supportRichText = true;
-            nameTagText.text = displayName;
-
-            return nameTagText;
-        }
-
-        private void UpdateNameTagPosition(Player player) {
-            Vector3 playerPos = player.transform.position;
-            
-            Text nameTag = player.nameTag;
+            Text nameTag = cat.nameTag;
             float horTextExtent = nameTag.preferredWidth * 0.5f;
             float vertTextExtent = nameTag.preferredHeight;
 
@@ -399,19 +447,10 @@ namespace CatsAreOnline {
             float minY = camPos.y - vertExtent + 0.5f;
             float maxY = camPos.y + vertExtent - vertTextExtent - 0.5f;
                                 
-            float scale = player.state.scale;
+            float scale = cat.state.scale;
             nameTag.rectTransform.anchoredPosition =
                 new Vector2(Mathf.Clamp(playerPos.x + _nameTagOffset.x * scale, minX, maxX),
                     Mathf.Clamp(playerPos.y + _nameTagOffset.y * scale, minY, maxY));
-        }
-
-        private void RemovePlayer(Player player) {
-            if(spectating == player) {
-                spectating = null;
-                Chat.Chat.AddMessage($"Stopped spectating <b>{player.username}</b> (player left)");
-            }
-            Object.Destroy(player.nameTag.gameObject);
-            Object.Destroy(player.gameObject);
         }
 
         private NetOutgoingMessage PrepareMessage(DataType type) {

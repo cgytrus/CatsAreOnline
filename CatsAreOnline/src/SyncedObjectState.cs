@@ -2,26 +2,19 @@
 
 using Cat;
 
+using CatsAreOnline.Shared.StateTypes;
+
 using Lidgren.Network;
 
 using UnityEngine;
 
 namespace CatsAreOnline {
-    public class PlayerState {
-        public enum Type : byte {
-            Position,
-            Room,
-            Color,
-            Scale,
-            Ice,
-            IceRotation
-        }
-
+    public abstract class SyncedObjectState {
         public Client client { get; set; }
-        
+
         public State movementCatState { get; set; }
 
-        public Vector2 position {
+        public virtual Vector2 position {
             get => _position;
             set {
                 _position = value;
@@ -33,19 +26,7 @@ namespace CatsAreOnline {
             }
         }
 
-        public string room {
-            get => _room;
-            set {
-                if(_room != value) {
-                    _roomChanged = true;
-                    anythingChanged = true;
-                    client.RoomChanged();
-                }
-                _room = value;
-            }
-        }
-
-        public Color color {
+        public virtual Color color {
             get => _color;
             set {
                 if(_color != value) {
@@ -56,7 +37,7 @@ namespace CatsAreOnline {
             }
         }
 
-        public float scale {
+        public virtual float scale {
             get => _scale;
             set {
                 if(_scale != value) {
@@ -67,51 +48,35 @@ namespace CatsAreOnline {
             }
         }
 
-        public bool ice {
-            get => _ice;
+        public virtual float rotation {
+            get => _rotation;
             set {
-                if(_ice != value) {
-                    _iceChanged = true;
+                if(_rotation != value) {
+                    _rotationChanged = true;
                     anythingChanged = true;
                 }
-                _ice = value;
-            }
-        }
-
-        public float iceRotation {
-            get => _iceRotation;
-            set {
-                if(!ice) return;
-                if(_iceRotation != value) {
-                    _iceRotationChanged = true;
-                    anythingChanged = true;
-                }
-                _iceRotation = value;
+                _rotation = value;
             }
         }
         
-        public bool anythingChanged { get; private set; }
+        public bool anythingChanged { get; protected set; }
 
         public NetDeliveryMethod deliveryMethod {
             get => _deliveryMethod;
-            private set {
+            protected set {
                 if(value > _deliveryMethod) _deliveryMethod = value;
             }
         }
-
+        
         private Vector2 _position;
-        private string _room;
         private Color _color;
         private float _scale;
-        private bool _ice;
-        private float _iceRotation;
-
+        private float _rotation;
+        
         private bool _positionChanged;
-        private bool _roomChanged;
         private bool _colorChanged;
         private bool _scaleChanged;
-        private bool _iceChanged;
-        private bool _iceRotationChanged;
+        private bool _rotationChanged;
         private NetDeliveryMethod _deliveryMethod;
 
         private static Vector2 _prevPosition;
@@ -133,48 +98,34 @@ namespace CatsAreOnline {
 
             if(_update && Time.unscaledTime - _lastMovingUpdate > stayTime) _update = false;
         }
-
+        
         [SuppressMessage("ReSharper", "InvertIf")]
-        public void WriteDeltaToMessage(NetOutgoingMessage message) {
+        public virtual void WriteDeltaToMessage(NetOutgoingMessage message) {
             if(_positionChanged) {
-                message.Write((byte)Type.Position);
+                message.Write((byte)SyncedObjectStateType.Position);
                 message.Write(position);
                 _positionChanged = false;
                 anythingChanged = false;
                 deliveryMethod = Client.GlobalDeliveryMethod;
             }
-            if(_roomChanged) {
-                message.Write((byte)Type.Room);
-                message.Write(room);
-                _roomChanged = false;
-                anythingChanged = false;
-                deliveryMethod = Client.LessReliableDeliveryMethod;
-            }
             if(_colorChanged) {
-                message.Write((byte)Type.Color);
+                message.Write((byte)SyncedObjectStateType.Color);
                 message.Write(color);
                 _colorChanged = false;
                 anythingChanged = false;
                 deliveryMethod = Client.LessReliableDeliveryMethod;
             }
             if(_scaleChanged) {
-                message.Write((byte)Type.Scale);
+                message.Write((byte)SyncedObjectStateType.Scale);
                 message.Write(scale);
                 _scaleChanged = false;
                 anythingChanged = false;
                 deliveryMethod = Client.LessReliableDeliveryMethod;
             }
-            if(_iceChanged) {
-                message.Write((byte)Type.Ice);
-                message.Write(ice);
-                _iceChanged = false;
-                anythingChanged = false;
-                deliveryMethod = Client.LessReliableDeliveryMethod;
-            }
-            if(_iceRotationChanged) {
-                message.Write((byte)Type.IceRotation);
-                message.Write(iceRotation);
-                _iceRotationChanged = false;
+            if(_rotationChanged) {
+                message.Write((byte)SyncedObjectStateType.Rotation);
+                message.Write(rotation);
+                _rotationChanged = false;
                 anythingChanged = false;
                 deliveryMethod = Client.GlobalDeliveryMethod;
             }

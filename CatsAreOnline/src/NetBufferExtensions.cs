@@ -20,13 +20,12 @@ namespace CatsAreOnline {
             buffer.Write(source.a);
         }
         
-        public static void Write(this NetBuffer buffer, PlayerState state) {
+        public static void Write(this NetBuffer buffer, CatSyncedObjectState state) {
             buffer.Write(state.position);
-            buffer.Write(state.room);
             buffer.Write(state.color);
             buffer.Write(state.scale);
+            buffer.Write(state.rotation);
             buffer.Write(state.ice);
-            buffer.Write(state.iceRotation);
         }
     }
 }
