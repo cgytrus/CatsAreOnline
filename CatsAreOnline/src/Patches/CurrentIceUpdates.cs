@@ -11,9 +11,11 @@ namespace CatsAreOnline.Patches {
 
         [HarmonyPatch(typeof(Cat.CatControls), "ActivateIce")]
         [HarmonyPostfix]
-        private static void ActivateIce(GameObject ___currentCatIce) =>
+        private static void ActivateIce(GameObject ___currentCatIce) {
+            if(!___currentCatIce) return;
             currentIce = ___currentCatIce.GetComponent<IceBlock>();
-        
+        }
+
         [HarmonyPatch(typeof(Cat.CatControls), "DeactivateIce")]
         [HarmonyPostfix]
         private static void DeactivateIce() => currentIce = null;

@@ -229,10 +229,8 @@ namespace CatsAreOnline {
             Player player = context.Source.spectating;
             if(player == null) return;
 
-            FollowPlayer.followPlayerHead =
-                context.Source.syncedObjectRegistry[player.controlling].restoreFollowPlayerHead;
-            FollowPlayer.customFollowTarget =
-                context.Source.syncedObjectRegistry[player.controlling].restoreFollowTarget;
+            FollowPlayer.followPlayerHead = context.Source.restoreFollowPlayerHead;
+            FollowPlayer.customFollowTarget = context.Source.restoreFollowTarget;
             context.Source.spectating = null;
             Chat.Chat.AddMessage($"Stopped spectating <b>{player.username}</b>");
         }
@@ -258,10 +256,8 @@ namespace CatsAreOnline {
             }
 
             context.Source.spectating = player;
-            context.Source.syncedObjectRegistry[player.controlling].restoreFollowPlayerHead =
-                FollowPlayer.followPlayerHead;
-            context.Source.syncedObjectRegistry[player.controlling].restoreFollowTarget =
-                FollowPlayer.customFollowTarget;
+            context.Source.restoreFollowPlayerHead = FollowPlayer.followPlayerHead;
+            context.Source.restoreFollowTarget = FollowPlayer.customFollowTarget;
             FollowPlayer.followPlayerHead = false;
             FollowPlayer.customFollowTarget = context.Source.syncedObjectRegistry[player.controlling].transform;
             Chat.Chat.AddMessage($"Spectating <b>{player.displayName}</b>");

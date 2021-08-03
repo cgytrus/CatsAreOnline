@@ -112,7 +112,7 @@ namespace CatsAreOnlineServer {
         }
 
         private static void ClientDisconnected(NetBuffer message) {
-            foreach((Guid guid, Player player) in new Dictionary<Guid, Player>(playerRegistry)) {
+            foreach((Guid id, Player player) in new Dictionary<Guid, Player>(playerRegistry)) {
                 if(player.connection.Status == NetConnectionStatus.Connected) continue;
 
                 string username = player.username;
@@ -124,7 +124,12 @@ namespace CatsAreOnlineServer {
                 notifyMessage.Write((byte)DataType.PlayerLeft);
                 notifyMessage.Write(username);
                 _server.SendToAll(notifyMessage, GlobalDeliveryMethod);
-                playerRegistry.Remove(guid);
+
+                List<Guid> toRemove = (from syncedObject in syncedObjectRegistry
+                                       where syncedObject.Value.owner.username == player.username
+                                       select syncedObject.Key).ToList();
+                foreach(Guid objId in toRemove) syncedObjectRegistry.Remove(objId);                
+                playerRegistry.Remove(id);
             }
         }
 
@@ -207,7 +212,7 @@ namespace CatsAreOnlineServer {
                 if(regGuid == guid) continue;
                 regPlayer.Write(secretMessage);
             }
-            secretMessage.Write(syncedObjectRegistry.Count - 1);
+            secretMessage.Write(syncedObjectRegistry.Count);
             foreach((Guid _, SyncedObject syncedObject) in syncedObjectRegistry) syncedObject.Write(secretMessage);
 
             _server.SendMessage(secretMessage, message.SenderConnection, ReliableDeliveryMethod);

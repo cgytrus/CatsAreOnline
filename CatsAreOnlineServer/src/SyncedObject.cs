@@ -36,15 +36,7 @@ namespace CatsAreOnlineServer {
         
         public void ReadChangedState(NetBuffer message, NetBuffer notifyMessage,
             byte stateTypeByte, ref NetDeliveryMethod deliveryMethod) {
-            SyncedObjectStateType stateType;
-            try {
-                stateType = (SyncedObjectStateType)stateTypeByte;
-            }
-            catch(Exception) {
-                ReadCustomChangedState(message, notifyMessage, stateTypeByte, ref deliveryMethod);
-                return;
-            }
-            
+            SyncedObjectStateType stateType = (SyncedObjectStateType)stateTypeByte;
             switch(stateType) {
                 case SyncedObjectStateType.Position:
                     posX = message.ReadFloat();
@@ -77,6 +69,9 @@ namespace CatsAreOnlineServer {
                     notifyMessage.Write(stateTypeByte);
                     notifyMessage.Write(rotation);
                     SetDeliveryMethod(Server.GlobalDeliveryMethod, ref deliveryMethod);
+                    break;
+                default:
+                    ReadCustomChangedState(message, notifyMessage, stateTypeByte, ref deliveryMethod);
                     break;
             }
         }

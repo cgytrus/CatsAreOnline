@@ -12,7 +12,7 @@ using UnityEngine.UI;
 namespace CatsAreOnline.SyncedObjects {
     public abstract class SyncedObject : MonoBehaviour {
         public readonly struct InterpolationSettings {
-            public enum InterpolationMode { Lerp, LerpUnclamped, Velocity }
+            public enum InterpolationMode { Lerp, LerpUnclamped }
             
             public InterpolationMode mode { get; }
             public double time { get; }
@@ -33,9 +33,6 @@ namespace CatsAreOnline.SyncedObjects {
         public SpriteRenderer renderer { get; set; }
         public Rigidbody2D rigidbody { get; set; }
         public abstract SyncedObjectState state { get; }
-        
-        public bool restoreFollowPlayerHead { get; set; }
-        public Transform restoreFollowTarget { get; set; }
 
         public static InterpolationSettings interpolationSettings { get; set; }
 
@@ -50,25 +47,22 @@ namespace CatsAreOnline.SyncedObjects {
         private void FixedUpdate() {
             switch(interpolationSettings.mode) {
                 case InterpolationSettings.InterpolationMode.Lerp:
-                    rigidbody.MovePosition(Vector3.Lerp(_fromPosition, state.position,
+                    renderer.transform.position = Vector3.Lerp(_fromPosition, state.position,
                         (float)(_interpolateStopwatch.Elapsed.TotalSeconds /
-                                (_setPositionTime * interpolationSettings.time))));
+                                (_setPositionTime * interpolationSettings.time)));
                     break;
                 case InterpolationSettings.InterpolationMode.LerpUnclamped:
-                    rigidbody.MovePosition(Vector3.LerpUnclamped(_fromPosition, state.position,
+                    renderer.transform.position = Vector3.LerpUnclamped(_fromPosition, state.position,
                         (float)(_interpolateStopwatch.Elapsed.TotalSeconds /
-                                (_setPositionTime * interpolationSettings.time))));
-                    break;
-                case InterpolationSettings.InterpolationMode.Velocity:
-                    rigidbody.velocity = (state.position - (Vector2)_fromPosition) /
-                                         (float)(_setPositionTime * interpolationSettings.time);
+                                (_setPositionTime * interpolationSettings.time)));
                     break;
             }
         }
 
         public virtual void SetPosition(Vector2 position) {
             state.position = position;
-            _fromPosition = transform.position;
+            _fromPosition = renderer.transform.position;
+            transform.position = position;
             _toAverage += Math.Min(_interpolateStopwatch?.Elapsed.TotalSeconds ?? Time.fixedDeltaTime,
                 Time.fixedDeltaTime * interpolationSettings.maxTime);
             _toAverageCount++;
@@ -89,11 +83,16 @@ namespace CatsAreOnline.SyncedObjects {
         public virtual void SetScale(float scale) {
             state.scale = scale;
             transform.localScale = Vector3.one * scale;
+            renderer.transform.localScale = Vector3.one * scale;
         }
 
         public virtual void SetRotation(float rotation) {
             state.rotation = rotation;
             rigidbody.MoveRotation(rotation);
+            Transform transform = renderer.transform;
+            Vector3 currentRot = transform.eulerAngles;
+            currentRot.z = rotation;
+            transform.eulerAngles = currentRot;
         }
 
         public virtual void UpdateRoom() {
@@ -102,25 +101,12 @@ namespace CatsAreOnline.SyncedObjects {
             bool own = owner.username == state.client.ownPlayer.username;
             gameObject.SetActive(sameRoom);
             nameTag.gameObject.SetActive(sameRoom);
+            renderer.gameObject.SetActive(sameRoom);
             renderer.enabled = !own || state.client.displayOwnCat;
-            
-            if(sameRoom || FollowPlayer.customFollowTarget != transform) return;
-            FollowPlayer.followPlayerHead = restoreFollowPlayerHead;
-            FollowPlayer.customFollowTarget = restoreFollowTarget;
-            state.client.spectating = null;
-            Chat.Chat.AddMessage($"Stopped spectating <b>{owner.username}</b> (room changed)");
         }
 
         public void ReadChangedState(NetBuffer message, byte stateTypeByte) {
-            SyncedObjectStateType stateType;
-            try {
-                stateType = (SyncedObjectStateType)stateTypeByte;
-            }
-            catch(Exception) {
-                ReadCustomChangedState(message, stateTypeByte);
-                return;
-            }
-            
+            SyncedObjectStateType stateType = (SyncedObjectStateType)stateTypeByte;
             switch(stateType) {
                 case SyncedObjectStateType.Position:
                     SetPosition(message.ReadVector2());
@@ -133,6 +119,9 @@ namespace CatsAreOnline.SyncedObjects {
                     break;
                 case SyncedObjectStateType.Rotation:
                     SetRotation(message.ReadFloat());
+                    break;
+                default:
+                    ReadCustomChangedState(message, stateTypeByte);
                     break;
             }
         }
@@ -149,7 +138,9 @@ namespace CatsAreOnline.SyncedObjects {
             GameObject obj = new GameObject($"OnlinePlayer_{owner.username}_{type.ToString()}") { layer = 0 };
             DontDestroyOnLoad(obj);
 
-            SpriteRenderer renderer = obj.AddComponent<SpriteRenderer>();
+            GameObject rendererObject = new GameObject($"{obj.name}_Renderer") { layer = 0 };
+            DontDestroyOnLoad(rendererObject);
+            SpriteRenderer renderer = rendererObject.AddComponent<SpriteRenderer>();
             renderer.sortingOrder = -50;
 
             Rigidbody2D rigidbody = obj.AddComponent<Rigidbody2D>();
@@ -165,6 +156,7 @@ namespace CatsAreOnline.SyncedObjects {
                     catCollider.radius = 0.4f;
                     
                     BoxCollider2D iceCollider = obj.AddComponent<BoxCollider2D>();
+                    iceCollider.size = Vector2.one;
             
                     CatSyncedObject cat = obj.AddComponent<CatSyncedObject>();
                     cat.state.client = client;
@@ -188,6 +180,7 @@ namespace CatsAreOnline.SyncedObjects {
                     return cat;
                 case SyncedObjectType.Companion:
                     BoxCollider2D companionCollider = obj.AddComponent<BoxCollider2D>();
+                    companionCollider.size = Vector2.one;
             
                     CompanionSyncedObject companion = obj.AddComponent<CompanionSyncedObject>();
                     companion.state.client = client;
@@ -237,6 +230,7 @@ namespace CatsAreOnline.SyncedObjects {
         }
 
         public void Remove() {
+            Destroy(renderer.gameObject);
             Destroy(nameTag.gameObject);
             Destroy(gameObject);
         }

@@ -8,7 +8,7 @@ namespace CatsAreOnline.SyncedObjects {
             get => _companion;
             set {
                 _companion = value;
-                if(value == null) return;
+                if(value == null || !value) return;
                 companionRenderer = value.transform.Find("Companion Sprite").GetComponent<SpriteRenderer>();
                 CompanionSyncedObject.sprite = companionRenderer.sprite;
             }
@@ -19,7 +19,9 @@ namespace CatsAreOnline.SyncedObjects {
         private static Companion _companion;
 
         public override void Update() {
+            if(!companion) return;
             Transform transform = companion.transform;
+            if(!transform) return;
             position = transform.position;
             scale = transform.localScale.x;
             color = companionRenderer.color;

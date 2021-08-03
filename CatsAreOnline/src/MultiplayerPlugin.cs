@@ -24,7 +24,7 @@ using CatPartManager = CaLAPI.API.Cat.CatPartManager;
 
 namespace CatsAreOnline {
     [BepInPlugin("mod.cgytrus.plugin.calOnline", "Cats are Online", "0.3.0")]
-    [BepInDependency("mod.cgytrus.plugins.calapi", "0.1.4")]
+    [BepInDependency("mod.cgytrus.plugins.calapi", "0.1.9")]
     public class MultiplayerPlugin : BaseUnityPlugin {
         public static ConfigEntry<bool> connected;
         private ConfigEntry<string> _username;
@@ -53,8 +53,10 @@ namespace CatsAreOnline {
         
         private bool _update;
 
-        private Guid _companionId = Guid.Empty;
         private FieldInfo _companionFieldInfo = AccessTools.Field(typeof(Cat.CatControls), "companion");
+
+        private FieldInfo _liquidParticleMaterialFieldInfo =
+            AccessTools.Field(typeof(Cat.CatControls), "liquidParticleMaterial");
 
         private void Awake() {
             Harmony.CreateAndPatchAll(typeof(JunctionUpdates));
@@ -146,6 +148,8 @@ namespace CatsAreOnline {
                 Cat.CatControls controls = (Cat.CatControls)caller;
                 
                 if(!controls.GetComponent<PlayerActor>()) return;
+
+                catColor = ((Material)_liquidParticleMaterialFieldInfo.GetValue(caller)).color;
                 
                 GameObject catIcePrefab =
                     (GameObject)AccessTools.Field(typeof(Cat.CatControls), "catIcePrefab").GetValue(caller);
@@ -167,8 +171,8 @@ namespace CatsAreOnline {
                             _client.ChangeControllingObject(_client.catId);
                             break;
                         case Cat.CatControls.ControlTarget.Companion:
-                            if(_companionId == Guid.Empty) break;
-                            _client.ChangeControllingObject(_companionId);
+                            if(_client.companionId == Guid.Empty) break;
+                            _client.ChangeControllingObject(_client.companionId);
                             break;
                     }
                 };
@@ -176,16 +180,17 @@ namespace CatsAreOnline {
                 controls.CompanionToggeledAction += enabled => {
                     if(enabled) {
                         CompanionSyncedObjectState.companion = (Companion)_companionFieldInfo.GetValue(caller);
-                        _companionId = Guid.NewGuid();
+                        _client.companionId = Guid.NewGuid();
                         _client.companionState = new CompanionSyncedObjectState { client = _client };
                         _client.companionState.Update();
-                        _client.SpawnObject(_companionId, SyncedObjectType.Companion, _client.companionState, true);
+                        _client.AddSyncedObject(_client.companionId, SyncedObjectType.Companion, _client.companionState,
+                            true);
                     }
                     else {
                         CompanionSyncedObjectState.companion = null;
                         _client.companionState = null;
-                        _client.RemoveObject(_companionId);
-                        _companionId = Guid.Empty;
+                        _client.RemoveSyncedObject(_client.companionId);
+                        _client.companionId = Guid.Empty;
                     }
                 };
             };
@@ -261,8 +266,8 @@ namespace CatsAreOnline {
             _client.companionState?.Update();
             if(_update) {
                 _client.SendStateDeltaToServer(_client.catId, _client.catState);
-                if(_client.companionState != null && _companionId != Guid.Empty)
-                    _client.SendStateDeltaToServer(_companionId, _client.companionState);
+                if(_client.companionState != null && _client.companionId != Guid.Empty)
+                    _client.SendStateDeltaToServer(_client.companionId, _client.companionState);
             }
             _update = !_update;
         }
