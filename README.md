@@ -1,5 +1,5 @@
 # Cats are Online
-A multiplayer mod for the game [Cats are Liquid: A Better Place](https://store.steampowered.com/app/1188080)
+A multiplayer mod for the game [Cats are Liquid - A Better Place](https://store.steampowered.com/app/1188080)
 
 ## Installation
 ### Playing
@@ -32,7 +32,6 @@ by drag-and-dropping the folder from the downloaded archive into the game's fold
    
 ## TODO
 *Entries ending with a question mark is stuff i may or may not do later*
-- entity interpolation?
 - sync cat features (tail, face etc.)?
 - server list?
 - permission system?
