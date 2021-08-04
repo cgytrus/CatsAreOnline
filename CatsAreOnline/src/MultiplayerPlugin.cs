@@ -10,9 +10,7 @@ using CaLAPI.API.ProphecySystem;
 
 using Cat;
 
-using CatsAreOnline.Chat;
 using CatsAreOnline.Patches;
-using CatsAreOnline.Shared;
 using CatsAreOnline.SyncedObjects;
 
 using HarmonyLib;
@@ -47,15 +45,10 @@ namespace CatsAreOnline {
 
         private Client _client;
 
-        public static State catState { get; private set; }
-        public static float catScale { get; private set; }
-        public static Color catColor { get; private set; }
-        
         private bool _update;
 
-        private FieldInfo _companionFieldInfo = AccessTools.Field(typeof(Cat.CatControls), "companion");
-
-        private FieldInfo _liquidParticleMaterialFieldInfo =
+        private readonly FieldInfo _companionFieldInfo = AccessTools.Field(typeof(Cat.CatControls), "companion");
+        private readonly FieldInfo _liquidParticleMaterialFieldInfo =
             AccessTools.Field(typeof(Cat.CatControls), "liquidParticleMaterial");
 
         private void Awake() {
@@ -92,12 +85,11 @@ namespace CatsAreOnline {
             connected.Value = false;
 
             _client = new Client();
-            PatchesClientProvider.client = _client;
 
             Commands.Initialize();
-            
-            catState = State.Normal;
-            catScale = Client.GetScaleFromCatState(catState);
+
+            CapturedData.catState = State.Normal;
+            CapturedData.catScale = CapturedData.catState.GetScale();
             connected.SettingChanged += (_, __) => {
                 if(!SetConnected(connected.Value)) connected.Value = false;
             };
@@ -140,8 +132,8 @@ namespace CatsAreOnline {
                 
                 if(!partManager.GetComponent<PlayerActor>()) return;
                 
-                _client.catSprite = args.noMetaballsPartTexture;
-                _client.playerPartManager = partManager;
+                CapturedData.catSprite = args.noMetaballsPartTexture;
+                CapturedData.catPartManager = partManager;
             };
 
             CatControls.awake += (caller, _) => {
@@ -149,20 +141,20 @@ namespace CatsAreOnline {
                 
                 if(!controls.GetComponent<PlayerActor>()) return;
 
-                catColor = ((Material)_liquidParticleMaterialFieldInfo.GetValue(caller)).color;
+                CapturedData.catColor = ((Material)_liquidParticleMaterialFieldInfo.GetValue(caller)).color;
                 
                 GameObject catIcePrefab =
                     (GameObject)AccessTools.Field(typeof(Cat.CatControls), "catIcePrefab").GetValue(caller);
                 SpriteRenderer catIceMainRenderer = (SpriteRenderer)AccessTools.Field(typeof(IceBlock), "mainSprite")
                     .GetValue(catIcePrefab.GetComponent<IceBlock>());
 
-                _client.iceSprite = catIceMainRenderer.sprite;
-                _client.iceColor = catIceMainRenderer.color;
-                _client.playerControls = controls;
+                CapturedData.iceSprite = catIceMainRenderer.sprite;
+                CapturedData.iceColor = catIceMainRenderer.color;
+                CapturedData.catControls = controls;
 
                 controls.StateSwitchAction += state => {
-                    catState = (State)state;
-                    catScale = Client.GetScaleFromCatState(catState);
+                    CapturedData.catState = (State)state;
+                    CapturedData.catScale = CapturedData.catState.GetScale();
                 };
 
                 controls.ControlTargetChangedAction += target => {
@@ -179,18 +171,18 @@ namespace CatsAreOnline {
 
                 controls.CompanionToggeledAction += enabled => {
                     if(enabled) {
-                        CompanionSyncedObjectState.companion = (Companion)_companionFieldInfo.GetValue(caller);
-                        _client.companionId = Guid.NewGuid();
-                        _client.companionState = new CompanionSyncedObjectState { client = _client };
-                        _client.companionState.Update();
-                        _client.AddSyncedObject(_client.companionId, SyncedObjectType.Companion, _client.companionState,
-                            true);
+                        Companion companion = (Companion)_companionFieldInfo.GetValue(caller);
+                        CapturedData.companionTransform = companion.transform;
+                        SpriteRenderer renderer = CapturedData.companionTransform.Find("Companion Sprite")
+                            .GetComponent<SpriteRenderer>();
+                        CapturedData.companionSprite = renderer.sprite;
+                        CapturedData.companionColor = renderer.color;
+
+                        _client.AddCompanion();
                     }
                     else {
-                        CompanionSyncedObjectState.companion = null;
-                        _client.companionState = null;
-                        _client.RemoveSyncedObject(_client.companionId);
-                        _client.companionId = Guid.Empty;
+                        CapturedData.companionTransform = null;
+                        _client.RemoveCompanion();
                     }
                 };
             };
@@ -207,25 +199,11 @@ namespace CatsAreOnline {
             };
 
             CaLAPI.API.CanvasManager.awake += (_, args) => {
-                _client.nameTagCamera = Camera.main;
-                GameObject nameTags = new GameObject("Name Tags") { layer = LayerMask.NameToLayer("UI") };
-                DontDestroyOnLoad(nameTags);
-
-                RectTransform nameTagsTransform = nameTags.AddComponent<RectTransform>();
-                nameTagsTransform.anchoredPosition = Vector2.zero;
-                nameTagsTransform.localScale = Vector3.one;
-
-                Canvas canvas = nameTags.AddComponent<Canvas>();
-                canvas.renderMode = RenderMode.WorldSpace;
-                canvas.worldCamera = _client.nameTagCamera;
-                canvas.scaleFactor = 720f;
-
-                _client.nameTags = nameTagsTransform;
+                _client.InitializeNameTags();
             };
 
             Writer.awake += (_, args) => {
-                _client.nameTagFont = args.font;
-                Message.font = args.font;
+                CapturedData.uiFont = args.font;
             };
 
             CatControls.changedColor += (caller, args) => {
@@ -233,7 +211,7 @@ namespace CatsAreOnline {
                 
                 if(!controls.GetComponent<PlayerActor>()) return;
 
-                catColor = args.newColor;
+                CapturedData.catColor = args.newColor;
             };
 
             UI.initialized += (_, __) => {

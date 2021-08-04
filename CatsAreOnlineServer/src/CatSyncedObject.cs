@@ -22,7 +22,7 @@ namespace CatsAreOnlineServer {
                     ice = message.ReadBoolean();
                     notifyMessage.Write(stateTypeByte);
                     notifyMessage.Write(ice);
-                    SetDeliveryMethod(Server.LessReliableDeliveryMethod, ref deliveryMethod);
+                    SetDeliveryMethod(DeliveryMethods.LessReliable, ref deliveryMethod);
                     break;
             }
         }

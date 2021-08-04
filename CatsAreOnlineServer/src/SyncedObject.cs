@@ -44,7 +44,7 @@ namespace CatsAreOnlineServer {
                     notifyMessage.Write(stateTypeByte);
                     notifyMessage.Write(posX);
                     notifyMessage.Write(posY);
-                    SetDeliveryMethod(Server.GlobalDeliveryMethod, ref deliveryMethod);
+                    SetDeliveryMethod(DeliveryMethods.Global, ref deliveryMethod);
                     break;
                 case SyncedObjectStateType.Color:
                     colorR = message.ReadFloat();
@@ -56,19 +56,19 @@ namespace CatsAreOnlineServer {
                     notifyMessage.Write(colorG);
                     notifyMessage.Write(colorB);
                     notifyMessage.Write(colorA);
-                    SetDeliveryMethod(Server.LessReliableDeliveryMethod, ref deliveryMethod);
+                    SetDeliveryMethod(DeliveryMethods.LessReliable, ref deliveryMethod);
                     break;
                 case SyncedObjectStateType.Scale:
                     scale = message.ReadFloat();
                     notifyMessage.Write(stateTypeByte);
                     notifyMessage.Write(scale);
-                    SetDeliveryMethod(Server.LessReliableDeliveryMethod, ref deliveryMethod);
+                    SetDeliveryMethod(DeliveryMethods.LessReliable, ref deliveryMethod);
                     break;
                 case SyncedObjectStateType.Rotation:
                     rotation = message.ReadFloat();
                     notifyMessage.Write(stateTypeByte);
                     notifyMessage.Write(rotation);
-                    SetDeliveryMethod(Server.GlobalDeliveryMethod, ref deliveryMethod);
+                    SetDeliveryMethod(DeliveryMethods.Global, ref deliveryMethod);
                     break;
                 default:
                     ReadCustomChangedState(message, notifyMessage, stateTypeByte, ref deliveryMethod);

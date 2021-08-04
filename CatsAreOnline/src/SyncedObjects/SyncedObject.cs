@@ -32,7 +32,7 @@ namespace CatsAreOnline.SyncedObjects {
         public Text nameTag { get; set; }
         public SpriteRenderer renderer { get; set; }
         public Rigidbody2D rigidbody { get; set; }
-        public abstract SyncedObjectState state { get; }
+        protected abstract SyncedObjectState state { get; }
 
         public static InterpolationSettings interpolationSettings { get; set; }
 
@@ -41,6 +41,8 @@ namespace CatsAreOnline.SyncedObjects {
         private int _toAverageCount;
         private Stopwatch _interpolateStopwatch;
         private Vector3 _fromPosition;
+        
+        private readonly Vector2 _nameTagOffset = Vector2.up;
 
         private void Awake() => _setPositionTime = Time.fixedDeltaTime;
 
@@ -163,7 +165,7 @@ namespace CatsAreOnline.SyncedObjects {
                     cat.id = id;
                     cat.owner = owner;
                     cat.nameTag = CreatePlayerNameTag(owner.username, owner.displayName, client.nameTags,
-                        client.nameTagFont);
+                        CapturedData.uiFont);
                     cat.renderer = renderer;
                     cat.rigidbody = rigidbody;
                     cat.catCollider = catCollider;
@@ -187,7 +189,7 @@ namespace CatsAreOnline.SyncedObjects {
                     companion.id = id;
                     companion.owner = owner;
                     companion.nameTag = CreatePlayerNameTag(owner.username, owner.displayName, client.nameTags,
-                        client.nameTagFont);
+                        CapturedData.uiFont);
                     companion.renderer = renderer;
                     companion.rigidbody = rigidbody;
                     companion.collider = companionCollider;
@@ -227,6 +229,29 @@ namespace CatsAreOnline.SyncedObjects {
             nameTagText.text = displayName;
 
             return nameTagText;
+        }
+        
+        public void UpdateNameTagPosition(Camera nameTagCamera) {
+            Vector3 playerPos = renderer.transform.position;
+            
+            Text nameTag = this.nameTag;
+            if(!nameTag) return;
+            
+            float horTextExtent = nameTag.preferredWidth * 0.5f;
+            float vertTextExtent = nameTag.preferredHeight;
+
+            Vector3 camPos = nameTagCamera.transform.position;
+            float vertExtent = nameTagCamera.orthographicSize;
+            float horExtent = vertExtent * Screen.width / Screen.height;
+            float minX = camPos.x - horExtent + horTextExtent + 0.5f;
+            float maxX = camPos.x + horExtent - horTextExtent - 0.5f;
+            float minY = camPos.y - vertExtent + 0.5f;
+            float maxY = camPos.y + vertExtent - vertTextExtent - 0.5f;
+                                
+            float scale = state.scale;
+            nameTag.rectTransform.anchoredPosition =
+                new Vector2(Mathf.Clamp(playerPos.x + _nameTagOffset.x * scale, minX, maxX),
+                    Mathf.Clamp(playerPos.y + _nameTagOffset.y * scale, minY, maxY));
         }
 
         public void Remove() {

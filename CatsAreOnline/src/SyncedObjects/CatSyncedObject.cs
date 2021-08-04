@@ -8,7 +8,7 @@ namespace CatsAreOnline.SyncedObjects {
     public class CatSyncedObject : SyncedObject {
         public CircleCollider2D catCollider { get; set; }
         public BoxCollider2D iceCollider { get; set; }
-        public override SyncedObjectState state { get; } = new CatSyncedObjectState();
+        protected override SyncedObjectState state { get; } = new CatSyncedObjectState();
 
         public override void SetRotation(float rotation) {
             if(!((CatSyncedObjectState)state).ice) return;
@@ -17,7 +17,7 @@ namespace CatsAreOnline.SyncedObjects {
 
         public void SetIce(bool ice) {
             ((CatSyncedObjectState)state).ice = ice;
-            renderer.sprite = ice ? state.client.iceSprite : state.client.catSprite;
+            renderer.sprite = ice ? CapturedData.iceSprite : CapturedData.catSprite;
             UpdateColliders();
             if(!ice) transform.eulerAngles = Vector3.zero;
         }

@@ -14,10 +14,6 @@ namespace CatsAreOnlineServer {
     public static class Server {
         public const string Version = "0.3.0";
         public static TimeSpan targetTickTime { get; } = TimeSpan.FromSeconds(0.01d);
-        
-        public const NetDeliveryMethod GlobalDeliveryMethod = NetDeliveryMethod.UnreliableSequenced;
-        public const NetDeliveryMethod LessReliableDeliveryMethod = NetDeliveryMethod.ReliableSequenced;
-        public const NetDeliveryMethod ReliableDeliveryMethod = NetDeliveryMethod.ReliableOrdered;
 
         public static readonly Dictionary<Guid, Player> playerRegistry = new();
         public static readonly Dictionary<Guid, SyncedObject> syncedObjectRegistry = new();
@@ -126,7 +122,7 @@ namespace CatsAreOnlineServer {
                 NetOutgoingMessage notifyMessage = _server.CreateMessage();
                 notifyMessage.Write((byte)DataType.PlayerLeft);
                 notifyMessage.Write(username);
-                _server.SendToAll(notifyMessage, GlobalDeliveryMethod);
+                _server.SendToAll(notifyMessage, DeliveryMethods.Global);
 
                 List<Guid> toRemove = (from syncedObject in syncedObjectRegistry
                                        where syncedObject.Value.owner.username == player.username
@@ -218,13 +214,13 @@ namespace CatsAreOnlineServer {
             secretMessage.Write(syncedObjectRegistry.Count);
             foreach((Guid _, SyncedObject syncedObject) in syncedObjectRegistry) syncedObject.Write(secretMessage);
 
-            _server.SendMessage(secretMessage, message.SenderConnection, ReliableDeliveryMethod);
+            _server.SendMessage(secretMessage, message.SenderConnection, DeliveryMethods.Reliable);
             
             // notifies all the players about the joined player
             NetOutgoingMessage notifyMessage = _server.CreateMessage();
             notifyMessage.Write((byte)DataType.PlayerJoined);
             player.Write(notifyMessage);
-            _server.SendToAll(notifyMessage, ReliableDeliveryMethod);
+            _server.SendToAll(notifyMessage, DeliveryMethods.Reliable);
         }
 
         private static void PlayerChangedRoomReceived(NetBuffer message) {
@@ -248,7 +244,7 @@ namespace CatsAreOnlineServer {
             notifyMessage.Write((byte)DataType.PlayerChangedRoom);
             notifyMessage.Write(player.username);
             notifyMessage.Write(player.room);
-            _server.SendToAll(notifyMessage, ReliableDeliveryMethod);
+            _server.SendToAll(notifyMessage, DeliveryMethods.Reliable);
         }
 
         private static void PlayerChangedControllingObjectReceived(NetBuffer message) {
@@ -261,7 +257,7 @@ namespace CatsAreOnlineServer {
             notifyMessage.Write((byte)DataType.PlayerChangedControllingObject);
             notifyMessage.Write(player.username);
             notifyMessage.Write(player.controlling.ToString());
-            _server.SendToAll(notifyMessage, ReliableDeliveryMethod);
+            _server.SendToAll(notifyMessage, DeliveryMethods.Reliable);
         }
         
         private static void SyncedObjectAddedReceived(NetBuffer message) {
@@ -276,7 +272,7 @@ namespace CatsAreOnlineServer {
             NetOutgoingMessage notifyMessage = _server.CreateMessage();
             notifyMessage.Write((byte)DataType.SyncedObjectAdded);
             syncedObject.Write(notifyMessage);
-            _server.SendToAll(notifyMessage, ReliableDeliveryMethod);
+            _server.SendToAll(notifyMessage, DeliveryMethods.Reliable);
         }
 
         private static void SyncedObjectRemovedReceived(NetBuffer message) {
@@ -292,7 +288,7 @@ namespace CatsAreOnlineServer {
             NetOutgoingMessage notifyMessage = _server.CreateMessage();
             notifyMessage.Write((byte)DataType.SyncedObjectRemoved);
             notifyMessage.Write(id.ToString());
-            _server.SendToAll(notifyMessage, ReliableDeliveryMethod);
+            _server.SendToAll(notifyMessage, DeliveryMethods.Reliable);
         }
 
         private static void SyncedObjectChangedStateReceived(NetBuffer message) {
@@ -304,7 +300,7 @@ namespace CatsAreOnlineServer {
             if(syncedObject.owner != player) return;
 
             NetOutgoingMessage notifyMessage = null;
-            NetDeliveryMethod deliveryMethod = GlobalDeliveryMethod;
+            NetDeliveryMethod deliveryMethod = DeliveryMethods.Global;
 
             while(message.ReadByte(out byte stateTypeByte)) {
                 if(notifyMessage == null) {
@@ -332,8 +328,7 @@ namespace CatsAreOnlineServer {
             resendMessage.Write((byte)DataType.ChatMessage);
             resendMessage.Write(player.username);
             resendMessage.Write(text);
-            _server.SendMessage(resendMessage, playerRegistry.Select(ply => ply.Value.connection).ToList(),
-                ReliableDeliveryMethod, 0);
+            _server.SendMessage(resendMessage, playerRegistry.Select(ply => ply.Value.connection).ToList(), DeliveryMethods.Reliable, 0);
         }
 
         private static void CommandReceived(NetBuffer message) {
@@ -370,7 +365,7 @@ namespace CatsAreOnlineServer {
             response.Write((byte)DataType.ChatMessage);
             response.Write(player.username);
             response.Write(message);
-            _server.SendMessage(response, player.connection, ReliableDeliveryMethod);
+            _server.SendMessage(response, player.connection, DeliveryMethods.Reliable);
         }
 
         public static string ServerMessage(string message) => $"<color=blue>[SERVER]</color> {message}";

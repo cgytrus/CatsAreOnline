@@ -2,6 +2,7 @@
 
 using Cat;
 
+using CatsAreOnline.Shared;
 using CatsAreOnline.Shared.StateTypes;
 
 using Lidgren.Network;
@@ -12,7 +13,7 @@ namespace CatsAreOnline.SyncedObjects {
     public abstract class SyncedObjectState {
         public Client client { get; set; }
 
-        public State movementCatState { get; set; }
+        protected State movementCatState { get; set; }
 
         public virtual Vector2 position {
             get => _position;
@@ -115,28 +116,28 @@ namespace CatsAreOnline.SyncedObjects {
                 message.Write(position);
                 _positionChanged = false;
                 anythingChanged = false;
-                deliveryMethod = Client.GlobalDeliveryMethod;
+                deliveryMethod = DeliveryMethods.Global;
             }
             if(_colorChanged) {
                 message.Write((byte)SyncedObjectStateType.Color);
                 message.Write(color);
                 _colorChanged = false;
                 anythingChanged = false;
-                deliveryMethod = Client.LessReliableDeliveryMethod;
+                deliveryMethod = DeliveryMethods.LessReliable;
             }
             if(_scaleChanged) {
                 message.Write((byte)SyncedObjectStateType.Scale);
                 message.Write(scale);
                 _scaleChanged = false;
                 anythingChanged = false;
-                deliveryMethod = Client.LessReliableDeliveryMethod;
+                deliveryMethod = DeliveryMethods.LessReliable;
             }
             if(_rotationChanged) {
                 message.Write((byte)SyncedObjectStateType.Rotation);
                 message.Write(rotation);
                 _rotationChanged = false;
                 anythingChanged = false;
-                deliveryMethod = Client.GlobalDeliveryMethod;
+                deliveryMethod = DeliveryMethods.Global;
             }
         }
     }

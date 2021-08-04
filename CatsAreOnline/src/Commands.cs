@@ -213,14 +213,14 @@ namespace CatsAreOnline {
                 return;
             }
             
-            context.Source.playerPartManager.MoveCat(context.Source.syncedObjectRegistry[player.controlling].transform
+            CapturedData.catPartManager.MoveCat(context.Source.syncedObjectRegistry[player.controlling].transform
                 .position);
             Chat.Chat.AddMessage(
                 $"Teleported <b>{context.Source.ownPlayer.displayName}</b> to <b>{player.displayName}</b>");
         }
         
         private static void TeleportCommand(CommandContext<Client> context, Vector2 position) {
-            context.Source.playerPartManager.MoveCat(position);
+            CapturedData.catPartManager.MoveCat(position);
             Chat.Chat.AddMessage(
                 $"Teleported <b>{context.Source.ownPlayer.displayName}</b> to <b>{position.ToString()}</b>");
         }
@@ -229,8 +229,6 @@ namespace CatsAreOnline {
             Player player = context.Source.spectating;
             if(player == null) return;
 
-            FollowPlayer.followPlayerHead = context.Source.restoreFollowPlayerHead;
-            FollowPlayer.customFollowTarget = context.Source.restoreFollowTarget;
             context.Source.spectating = null;
             Chat.Chat.AddMessage($"Stopped spectating <b>{player.username}</b>");
         }
@@ -256,10 +254,6 @@ namespace CatsAreOnline {
             }
 
             context.Source.spectating = player;
-            context.Source.restoreFollowPlayerHead = FollowPlayer.followPlayerHead;
-            context.Source.restoreFollowTarget = FollowPlayer.customFollowTarget;
-            FollowPlayer.followPlayerHead = false;
-            FollowPlayer.customFollowTarget = context.Source.syncedObjectRegistry[player.controlling].transform;
             Chat.Chat.AddMessage($"Spectating <b>{player.displayName}</b>");
         }
     }

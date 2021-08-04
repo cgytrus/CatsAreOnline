@@ -2,28 +2,17 @@
 using System.Collections.Generic;
 using System.Linq;
 
-using Cat;
-
 using CatsAreOnline.Shared;
 using CatsAreOnline.SyncedObjects;
 
 using Lidgren.Network;
 
 using UnityEngine;
-using UnityEngine.UI;
+
+using Object = UnityEngine.Object;
 
 namespace CatsAreOnline {
     public class Client {
-        public const NetDeliveryMethod GlobalDeliveryMethod = NetDeliveryMethod.UnreliableSequenced;
-        public const NetDeliveryMethod LessReliableDeliveryMethod = NetDeliveryMethod.ReliableSequenced;
-        public const NetDeliveryMethod ReliableDeliveryMethod = NetDeliveryMethod.ReliableOrdered;
-        
-        public CatPartManager playerPartManager { get; set; }
-        public CatControls playerControls { get; set; }
-        public Sprite catSprite { get; set; }
-        public Sprite iceSprite { get; set; }
-        public Color iceColor { get; set; }
-
         public bool displayOwnCat {
             get => _displayOwnCat;
             set {
@@ -44,25 +33,34 @@ namespace CatsAreOnline {
             }
         }
 
-        public RectTransform nameTags { get; set; }
-        public Font nameTagFont { get; set; }
-        public Camera nameTagCamera { get; set; }
-        
-        public bool inJunction { get; set; }
-        public Vector2 junctionPosition { get; set; }
+        public RectTransform nameTags { get; private set; }
 
-        public bool canConnect => playerPartManager && playerControls && catSprite && iceSprite && nameTags &&
-                                         nameTagFont && nameTagCamera;
+        public bool canConnect => CapturedData.catPartManager && CapturedData.catControls && CapturedData.catSprite &&
+                                  CapturedData.iceSprite && nameTags && CapturedData.uiFont && _nameTagCamera;
 
         public Player ownPlayer { get; private set; } =
             new Player(null, null, null, Guid.Empty);
         public CatSyncedObjectState catState { get; } = new CatSyncedObjectState();
-        public CompanionSyncedObjectState companionState { get; set; }
+        public CompanionSyncedObjectState companionState { get; private set; }
         public Guid catId { get; private set; }
-        public Guid companionId { get; set; }
-        public Player spectating { get; set; }
-        public bool restoreFollowPlayerHead { get; set; }
-        public Transform restoreFollowTarget { get; set; }
+        public Guid companionId { get; private set; }
+
+        public Player spectating {
+            get => _spectating;
+            set {
+                _spectating = value;
+                if(value == null) {
+                    FollowPlayer.followPlayerHead = _restoreFollowPlayerHead;
+                    FollowPlayer.customFollowTarget = _restoreFollowTarget;
+                }
+                else {
+                    _restoreFollowPlayerHead = FollowPlayer.followPlayerHead;
+                    _restoreFollowTarget = FollowPlayer.customFollowTarget;
+                    FollowPlayer.followPlayerHead = false;
+                    FollowPlayer.customFollowTarget = syncedObjectRegistry[value.controlling].transform;
+                }
+            }
+        }
         
         public readonly Dictionary<string, Player> playerRegistry = new Dictionary<string, Player>();
         public readonly Dictionary<Guid, SyncedObject> syncedObjectRegistry = new Dictionary<Guid, SyncedObject>();
@@ -73,19 +71,25 @@ namespace CatsAreOnline {
 
         private string _guid;
 
+        private readonly NetClient _client;
+        
         private bool _displayOwnCat;
         private bool _playerCollisions;
-        private NetClient _client;
-        private readonly Vector2 _nameTagOffset = Vector2.up;
+        
+        private Player _spectating;
+        private bool _restoreFollowPlayerHead;
+        private Transform _restoreFollowTarget;
+        
+        private Camera _nameTagCamera;
 
-        private Guid _tempSpawnGuid;
+        private Guid _waitingForSpawnGuid;
         private bool _waitingForSpawn;
         private bool _switchControllingAfterSpawn;
 
-        public Vector2 currentCatPosition => inJunction ? junctionPosition :
+        public Vector2 currentCatPosition => CapturedData.inJunction ? CapturedData.junctionPosition :
             (FollowPlayer.customFollowTarget || Boiler.PlayerBoilerCounter > 0) && spectating == null ?
             (Vector2)FollowPlayer.LookAt.position :
-            playerPartManager ? (Vector2)playerPartManager.GetCatCenter() : Vector2.zero;
+            CapturedData.catPartManager ? (Vector2)CapturedData.catPartManager.GetCatCenter() : Vector2.zero;
 
         public Client() {
             _receivingMessages = new Dictionary<DataType, Action<NetBuffer>> {
@@ -102,8 +106,8 @@ namespace CatsAreOnline {
             
             catState.client = this;
             
-            restoreFollowPlayerHead = FollowPlayer.followPlayerHead;
-            restoreFollowTarget = FollowPlayer.customFollowTarget;
+            _restoreFollowPlayerHead = FollowPlayer.followPlayerHead;
+            _restoreFollowTarget = FollowPlayer.customFollowTarget;
             
             NetPeerConfiguration config = new NetPeerConfiguration("mod.cgytrus.plugin.calOnline");
             
@@ -146,7 +150,24 @@ namespace CatsAreOnline {
 
         public void UpdateAllNameTagsPositions() {
             foreach(KeyValuePair<Guid, SyncedObject> syncedObject in syncedObjectRegistry)
-                UpdateNameTagPosition(syncedObject.Value);
+                syncedObject.Value.UpdateNameTagPosition(_nameTagCamera);
+        }
+
+        public void InitializeNameTags() {
+            _nameTagCamera = Camera.main;
+            GameObject nameTags = new GameObject("Name Tags") { layer = LayerMask.NameToLayer("UI") };
+            Object.DontDestroyOnLoad(nameTags);
+
+            RectTransform nameTagsTransform = nameTags.AddComponent<RectTransform>();
+            nameTagsTransform.anchoredPosition = Vector2.zero;
+            nameTagsTransform.localScale = Vector3.one;
+
+            Canvas canvas = nameTags.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            canvas.worldCamera = _nameTagCamera;
+            canvas.scaleFactor = 720f;
+
+            this.nameTags = nameTagsTransform;
         }
 
         public void SendChatMessage(string text) {
@@ -159,7 +180,7 @@ namespace CatsAreOnline {
             message.Write((byte)DataType.ChatMessage);
             message.Write(_guid);
             message.Write(text);
-            SendMessageToServer(message, ReliableDeliveryMethod);
+            SendMessageToServer(message, DeliveryMethods.Reliable);
         }
 
         public void SendServerCommand(string command) {
@@ -172,7 +193,7 @@ namespace CatsAreOnline {
             message.Write((byte)DataType.Command);
             message.Write(_guid);
             message.Write(command);
-            SendMessageToServer(message, ReliableDeliveryMethod);
+            SendMessageToServer(message, DeliveryMethods.Reliable);
         }
 
         public void ExecuteCommand(string command) {
@@ -182,13 +203,6 @@ namespace CatsAreOnline {
             }
             catch(Exception ex) {
                 Chat.Chat.AddErrorMessage(ex.Message);
-            }
-        }
-
-        public static float GetScaleFromCatState(State state) {
-            switch(state) {
-                case State.Liquid: return 1f;
-                default: return 1.35f;
             }
         }
 
@@ -206,13 +220,55 @@ namespace CatsAreOnline {
 
             NetOutgoingMessage message = PrepareMessage(DataType.PlayerChangedRoom);
             message.Write(ownPlayer.room);
-            SendMessageToServer(message, ReliableDeliveryMethod);
+            SendMessageToServer(message, DeliveryMethods.Reliable);
             
             foreach(KeyValuePair<Guid, SyncedObject> syncedObject in syncedObjectRegistry)
                 syncedObject.Value.UpdateRoom();
 
             catId = Guid.NewGuid();
             AddSyncedObject(catId, SyncedObjectType.Cat, catState, true);
+        }
+
+        public void AddSyncedObject(Guid id, SyncedObjectType type, SyncedObjectState state, bool switchControlling) {
+            if(_client.ConnectionStatus != NetConnectionStatus.Connected) return;
+
+            _waitingForSpawnGuid = id;
+            NetOutgoingMessage message = PrepareMessage(DataType.SyncedObjectAdded);
+            message.Write((byte)type);
+            message.Write(_waitingForSpawnGuid.ToString());
+            state.Write(message);
+            SendMessageToServer(message, DeliveryMethods.Reliable);
+            _waitingForSpawn = true;
+            _switchControllingAfterSpawn = switchControlling;
+        }
+
+        public void RemoveSyncedObject(Guid id) {
+            if(_client.ConnectionStatus != NetConnectionStatus.Connected) return;
+
+            NetOutgoingMessage message = PrepareMessage(DataType.SyncedObjectRemoved);
+            message.Write(id.ToString());
+            SendMessageToServer(message, DeliveryMethods.Reliable);
+        }
+        
+        public void AddCompanion() {
+            companionId = Guid.NewGuid();
+            companionState = new CompanionSyncedObjectState { client = this };
+            companionState.Update();
+            AddSyncedObject(companionId, SyncedObjectType.Companion, companionState,
+                true);
+        }
+        
+        public void RemoveCompanion() {
+            companionState = null;
+            RemoveSyncedObject(companionId);
+            companionId = Guid.Empty;
+        }
+
+        public void ChangeControllingObject(Guid id) {
+            ownPlayer.controlling = id;
+            NetOutgoingMessage controllingMessage = PrepareMessage(DataType.PlayerChangedControllingObject);
+            controllingMessage.Write(id.ToString());
+            SendMessageToServer(controllingMessage, DeliveryMethods.Reliable);
         }
 
         private void MessageReceived(NetIncomingMessage message) {
@@ -257,7 +313,7 @@ namespace CatsAreOnline {
             message.Write((byte)DataType.RegisterPlayer);
             message.Write(""); // send an empty guid because we don't have one yet
             ownPlayer.Write(message);
-            SendMessageToServer(message, ReliableDeliveryMethod);
+            SendMessageToServer(message, DeliveryMethods.Reliable);
         }
         
         private void Disconnected(string reason) {
@@ -268,35 +324,7 @@ namespace CatsAreOnline {
                 syncedObject.Value.Remove();
             syncedObjectRegistry.Clear();
             playerRegistry.Clear();
-            Chat.Chat.AddErrorMessage($"Disconnected from the server ({reason})");
-        }
-
-        public void AddSyncedObject(Guid id, SyncedObjectType type, SyncedObjectState state, bool switchControlling) {
-            if(_client.ConnectionStatus != NetConnectionStatus.Connected) return;
-
-            _tempSpawnGuid = id;
-            NetOutgoingMessage message = PrepareMessage(DataType.SyncedObjectAdded);
-            message.Write((byte)type);
-            message.Write(_tempSpawnGuid.ToString());
-            state.Write(message);
-            SendMessageToServer(message, ReliableDeliveryMethod);
-            _waitingForSpawn = true;
-            _switchControllingAfterSpawn = switchControlling;
-        }
-
-        public void RemoveSyncedObject(Guid id) {
-            if(_client.ConnectionStatus != NetConnectionStatus.Connected) return;
-
-            NetOutgoingMessage message = PrepareMessage(DataType.SyncedObjectRemoved);
-            message.Write(id.ToString());
-            SendMessageToServer(message, ReliableDeliveryMethod);
-        }
-
-        public void ChangeControllingObject(Guid id) {
-            ownPlayer.controlling = id;
-            NetOutgoingMessage controllingMessage = PrepareMessage(DataType.PlayerChangedControllingObject);
-            controllingMessage.Write(id.ToString());
-            SendMessageToServer(controllingMessage, ReliableDeliveryMethod);
+            Chat.Chat.AddMessage($"Disconnected from the server ({reason})");
         }
 
         private void DataMessageReceived(NetBuffer message) {
@@ -306,7 +334,7 @@ namespace CatsAreOnline {
             debug.PrintServer(type);
 
             if(_receivingMessages.TryGetValue(type, out Action<NetBuffer> action)) action(message);
-            else Debug.Log($"[WARN] Unknown message type received: {type.ToString()}");
+            else Debug.LogWarning($"[CaO] [WARN] Unknown message type received: {type.ToString()}");
         }
 
         private void RegisterPlayerReceived(NetBuffer message) {
@@ -337,11 +365,12 @@ namespace CatsAreOnline {
                 syncedObjectRegistry.Add(syncedObject.id, syncedObject);
             }
 
+            bool inCompanion = companionId != Guid.Empty && companionState != null;
+
             catId = Guid.NewGuid();
-            AddSyncedObject(catId, SyncedObjectType.Cat, catState, true);
+            AddSyncedObject(catId, SyncedObjectType.Cat, catState, !inCompanion);
             
-            if(companionId != Guid.Empty && companionState != null)
-                AddSyncedObject(companionId, SyncedObjectType.Companion, companionState, true);
+            if(inCompanion) AddSyncedObject(companionId, SyncedObjectType.Companion, companionState, true);
         }
 
         private void PlayerJoinedReceived(NetBuffer message) {
@@ -360,8 +389,6 @@ namespace CatsAreOnline {
             Chat.Chat.AddMessage($"Player {player.displayName} left");
 
             if(spectating?.username == username) {
-                FollowPlayer.followPlayerHead = restoreFollowPlayerHead;
-                FollowPlayer.customFollowTarget = restoreFollowTarget;
                 spectating = null;
                 Chat.Chat.AddMessage($"Stopped spectating <b>{username}</b> (player left)");
             }
@@ -382,21 +409,22 @@ namespace CatsAreOnline {
 
             string room = message.ReadString();
 
-            if(!player.RoomEqual(room)) {
-                if(spectating?.username == username) {
-                    FollowPlayer.followPlayerHead = restoreFollowPlayerHead;
-                    FollowPlayer.customFollowTarget = restoreFollowTarget;
-                    spectating = null;
-                    Chat.Chat.AddMessage($"Stopped spectating <b>{username}</b> (player changed room)");
-                }
-                
-                List<Guid> toRemove = (from syncedObject in syncedObjectRegistry
-                                              where syncedObject.Value.owner.username == username
-                                              select syncedObject.Key).ToList();
-                foreach(Guid id in toRemove) {
-                    syncedObjectRegistry[id].Remove();
-                    syncedObjectRegistry.Remove(id);
-                }
+            if(player.RoomEqual(room)) {
+                player.room = room;
+                return;
+            }
+
+            if(spectating?.username == username) {
+                spectating = null;
+                Chat.Chat.AddMessage($"Stopped spectating <b>{username}</b> (player changed room)");
+            }
+
+            List<Guid> toRemove = (from syncedObject in syncedObjectRegistry
+                                   where syncedObject.Value.owner.username == username
+                                   select syncedObject.Key).ToList();
+            foreach(Guid id in toRemove) {
+                syncedObjectRegistry[id].Remove();
+                syncedObjectRegistry.Remove(id);
             }
 
             player.room = room;
@@ -424,7 +452,7 @@ namespace CatsAreOnline {
             SyncedObject syncedObject = SyncedObject.Create(this, type, id, player, message);
             syncedObjectRegistry.Add(id, syncedObject);
 
-            if(!_waitingForSpawn || id != _tempSpawnGuid) return;
+            if(!_waitingForSpawn || id != _waitingForSpawnGuid) return;
             _waitingForSpawn = false;
             if(!_switchControllingAfterSpawn) return;
             ChangeControllingObject(id);
@@ -451,29 +479,6 @@ namespace CatsAreOnline {
 
             Debug.Log($"[{player.username} ({username})] {text}");
             Chat.Chat.AddMessage($"[{player.displayName}] {text}");
-        }
-
-        private void UpdateNameTagPosition(SyncedObject cat) {
-            Vector3 playerPos = cat.renderer.transform.position;
-            
-            Text nameTag = cat.nameTag;
-            if(!nameTag) return;
-            
-            float horTextExtent = nameTag.preferredWidth * 0.5f;
-            float vertTextExtent = nameTag.preferredHeight;
-
-            Vector3 camPos = nameTagCamera.transform.position;
-            float vertExtent = nameTagCamera.orthographicSize;
-            float horExtent = vertExtent * Screen.width / Screen.height;
-            float minX = camPos.x - horExtent + horTextExtent + 0.5f;
-            float maxX = camPos.x + horExtent - horTextExtent - 0.5f;
-            float minY = camPos.y - vertExtent + 0.5f;
-            float maxY = camPos.y + vertExtent - vertTextExtent - 0.5f;
-                                
-            float scale = cat.state.scale;
-            nameTag.rectTransform.anchoredPosition =
-                new Vector2(Mathf.Clamp(playerPos.x + _nameTagOffset.x * scale, minX, maxX),
-                    Mathf.Clamp(playerPos.y + _nameTagOffset.y * scale, minY, maxY));
         }
 
         private NetOutgoingMessage PrepareMessage(DataType type) {

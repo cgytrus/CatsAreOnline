@@ -32,17 +32,22 @@
         <WarningLevel>4</WarningLevel>
     </PropertyGroup>
     <ItemGroup>
-        <Reference Include="System" />
+        <Reference Include="Lidgren.Network, Version=2012.1.7.0, Culture=neutral, PublicKeyToken=null">
+          <HintPath>..\packages\Lidgren.Network.1.0.2\lib\net451\Lidgren.Network.dll</HintPath>
+          <Private>True</Private>
+        </Reference>
         <Reference Include="System.Core" />
-        <Reference Include="System.Data" />
-        <Reference Include="System.Xml" />
     </ItemGroup>
     <ItemGroup>
         <Compile Include="Properties\AssemblyInfo.cs" />
         <Compile Include="src\DataType.cs" />
+        <Compile Include="src\DeliveryMethods.cs" />
         <Compile Include="src\StateTypes\CatStateType.cs" />
         <Compile Include="src\StateTypes\SyncedObjectStateType.cs" />
         <Compile Include="src\SyncedObjectType.cs" />
+    </ItemGroup>
+    <ItemGroup>
+      <None Include="packages.config" />
     </ItemGroup>
     <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
     <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

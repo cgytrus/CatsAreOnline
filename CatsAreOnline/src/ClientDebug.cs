@@ -9,13 +9,13 @@ namespace CatsAreOnline {
         [Flags]
         public enum DataTypeFlag {
             None = 0,
-            RegisterPlayer = 0b1,
-            PlayerJoined = 0b10,
-            PlayerLeft = 0b100,
-            PlayerChangedState = 0b1000,
-            ChatMessage = 0b10000,
-            Command = 0b100000,
-            All = 0b111111
+            All = -1,
+            RegisterPlayer = 1,
+            PlayerJoined = 1 << 1,
+            PlayerLeft = 1 << 2,
+            PlayerChangedState = 1 << 3,
+            ChatMessage = 1 << 4,
+            Command = 1 << 5
         }
         
         public bool enabled = false;
@@ -24,14 +24,14 @@ namespace CatsAreOnline {
         public DataTypeFlag server = DataTypeFlag.None;
         
         private void PrintClient(DataType dataType) {
-            if(!enabled || !client.HasFlag((DataTypeFlag)(1 << (int)dataType))) return;
+            if(!enabled || ((int)client & 1 << (int)dataType) == 0) return;
             Chat.Chat.AddDebugMessage($"[CLIENT] {dataType.ToString()}");
         }
 
         public void PrintClient(NetOutgoingMessage message) => PrintClient((DataType)message.PeekByte());
         
         public void PrintServer(DataType dataType) {
-            if(!enabled || !server.HasFlag((DataTypeFlag)(1 << (int)dataType))) return;
+            if(!enabled || ((int)server & 1 << (int)dataType) == 0) return;
             Chat.Chat.AddDebugMessage($"[SERVER] {dataType.ToString()}");
         }
     }

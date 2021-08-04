@@ -4,8 +4,8 @@ using Lidgren.Network;
 
 namespace CatsAreOnline {
     public class Player {
-        public string username { get; private set; }
-        public string displayName { get; private set; }
+        public string username { get; }
+        public string displayName { get; }
         public string room { get; set; }
         public Guid controlling { get; set; }
 

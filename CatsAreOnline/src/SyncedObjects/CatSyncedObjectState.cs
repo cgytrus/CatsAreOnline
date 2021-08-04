@@ -2,7 +2,7 @@
 
 using Cat;
 
-using CatsAreOnline.Patches;
+using CatsAreOnline.Shared;
 using CatsAreOnline.Shared.StateTypes;
 
 using Lidgren.Network;
@@ -34,18 +34,22 @@ namespace CatsAreOnline.SyncedObjects {
         private bool _iceChanged;
 
         public override void Update() {
-            if(Pipe.catInPipe) scale = Client.GetScaleFromCatState(State.Liquid);
-            else {
-                scale = MultiplayerPlugin.catScale;
-                color = MultiplayerPlugin.catColor;
+            if(Pipe.catInPipe) {
+                scale = State.Liquid.GetScale();
+                color = CapturedData.catPipeColor;
             }
-            movementCatState = MultiplayerPlugin.catState;
+            else {
+                scale = CapturedData.catScale;
+                color = CapturedData.catColor;
+            }
+            movementCatState = CapturedData.catState;
             position = client.currentCatPosition;
-            if(!client.playerControls) return;
-            ice = CurrentIceUpdates.currentIce;
+            if(!CapturedData.catControls) return;
+            ice = CapturedData.inIce;
             if(!ice) return;
-            color = client.iceColor;
-            scale = CurrentIceUpdates.currentIce.Size.y * 3.5f;
+            color = CapturedData.iceColor;
+            scale = CapturedData.iceBlock.Size.y * 3.5f;
+            rotation = CapturedData.iceRotation;
         }
         
         public override void Write(NetBuffer message) {
@@ -61,7 +65,7 @@ namespace CatsAreOnline.SyncedObjects {
                 message.Write(ice);
                 _iceChanged = false;
                 anythingChanged = false;
-                deliveryMethod = Client.LessReliableDeliveryMethod;
+                deliveryMethod = DeliveryMethods.LessReliable;
             }
         }
     }

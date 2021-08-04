@@ -11,15 +11,15 @@ namespace CatsAreOnline.Patches {
         [HarmonyPostfix]
         private static void EnterClientJunction(PipeJunction __instance, PipeObject pipeObject) {
             if(AccessTools.Field(typeof(PipeObject), "controller").GetValue(pipeObject) == null) return;
-            PatchesClientProvider.client.junctionPosition = __instance.transform.position;
-            PatchesClientProvider.client.inJunction = true;
+            CapturedData.junctionPosition = __instance.transform.position;
+            CapturedData.inJunction = true;
         }
         
         [HarmonyPatch(typeof(PipeJunction), "ExitJunction", typeof(PipeObject), typeof(PipeEndPoint))]
         [HarmonyPostfix]
         private static void ExitClientJunction(PipeJunction __instance, PipeObject pipeObject) {
             if(AccessTools.Field(typeof(PipeObject), "controller").GetValue(pipeObject) == null) return;
-            PatchesClientProvider.client.inJunction = false;
+            CapturedData.inJunction = false;
         }
     }
 }

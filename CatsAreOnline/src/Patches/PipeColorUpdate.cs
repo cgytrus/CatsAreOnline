@@ -14,7 +14,7 @@ namespace CatsAreOnline.Patches {
         public static void UpdatePipeColor(Material[] ___materials) {
             foreach(Material material in ___materials) {
                 if(!material) continue;
-                PatchesClientProvider.client.catState.color = material.color;
+                CapturedData.catPipeColor = material.color;
                 break;
             }
         }

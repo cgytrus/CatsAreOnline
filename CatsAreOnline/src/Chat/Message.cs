@@ -3,7 +3,6 @@ using UnityEngine.UI;
 
 namespace CatsAreOnline.Chat {
     public class Message {
-        public static Font font { get; set; }
         public Text text { get; private set; }
         public float time { get; private set; }
 
@@ -26,7 +25,7 @@ namespace CatsAreOnline.Chat {
             transform.sizeDelta = new Vector2(0f, 30f);
 
             this.text = obj.AddComponent<Text>();
-            this.text.font = font;
+            this.text.font = CapturedData.uiFont;
             this.text.alignment = TextAnchor.LowerLeft;
             this.text.fontSize = 28;
             this.text.supportRichText = true;
