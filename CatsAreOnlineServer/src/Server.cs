@@ -28,7 +28,10 @@ namespace CatsAreOnlineServer {
         public static void Main(string[] args) {
             bool upnp = false;
             if(args.Length <= 0 || !int.TryParse(args[0], out int port) ||
-               args.Length >= 2 && !bool.TryParse(args[1], out upnp)) return;
+               args.Length >= 2 && !bool.TryParse(args[1], out upnp)) {
+                Console.WriteLine("Invalid arguments.");
+                return;
+            }
             
             Commands.Initialize();
             
