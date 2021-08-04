@@ -15,7 +15,7 @@ namespace CatsAreOnlineServer {
                     Server.SendChatMessage(context.Source, Server.ServerMessage(
                         $"- <b>{dispatcher.Root.Children.Count.ToString(CultureInfo.InvariantCulture)}</b> commands available"));
                     Server.SendChatMessage(context.Source, Server.ServerMessage(
-                        $"- <b>{Server.playerRegistry.Count.ToString(CultureInfo.InvariantCulture)}</b> players online"));
+                        $"- <b>{Server.playerCount.ToString(CultureInfo.InvariantCulture)}</b> players online"));
                     return 1;
                 }));
         }

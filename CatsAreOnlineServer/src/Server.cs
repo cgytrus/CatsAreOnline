@@ -15,11 +15,15 @@ namespace CatsAreOnlineServer {
         public const string Version = "0.3.0";
         public static TimeSpan targetTickTime { get; } = TimeSpan.FromSeconds(0.01d);
 
-        public static readonly Dictionary<Guid, Player> playerRegistry = new();
-        public static readonly Dictionary<Guid, SyncedObject> syncedObjectRegistry = new();
+        public static int playerCount => playerRegistry.Count;
+
+        private static readonly Dictionary<Guid, Player> playerRegistry = new();
+        private static readonly Dictionary<Guid, SyncedObject> syncedObjectRegistry = new();
         
         private static NetServer _server;
         private static readonly List<NetConnection> tempConnections = new();
+        
+        private static IReadOnlyDictionary<DataType, Action<NetBuffer>> _receivingDataMessages;
 
         public static void Main(string[] args) {
             bool upnp = false;
@@ -28,6 +32,16 @@ namespace CatsAreOnlineServer {
                 Console.WriteLine("Invalid arguments.");
                 return;
             }
+
+            _receivingDataMessages = new Dictionary<DataType, Action<NetBuffer>> {
+                { DataType.PlayerChangedRoom, PlayerChangedRoomReceived },
+                { DataType.PlayerChangedControllingObject, PlayerChangedControllingObjectReceived },
+                { DataType.SyncedObjectAdded, SyncedObjectAddedReceived },
+                { DataType.SyncedObjectRemoved, SyncedObjectRemovedReceived },
+                { DataType.SyncedObjectChangedState, SyncedObjectChangedStateReceived },
+                { DataType.ChatMessage, ChatMessageReceived },
+                { DataType.Command, CommandReceived }
+            };
             
             Commands.Initialize();
             
@@ -133,43 +147,11 @@ namespace CatsAreOnlineServer {
         }
 
         private static void DataMessageReceived(NetIncomingMessage message) {
-            byte typeByte = message.ReadByte();
-            DataType type;
-            try {
-                type = (DataType)typeByte;
-            }
-            catch(Exception) {
-                string typeByteStr = typeByte.ToString(CultureInfo.InvariantCulture);
-                Console.WriteLine($"[WARN] Unknown message type received (${typeByteStr})");
-                return;
-            }
-
-            switch(type) {
-                case DataType.RegisterPlayer:
-                    RegisterPlayerReceived(message);
-                    break;
-                case DataType.PlayerChangedRoom:
-                    PlayerChangedRoomReceived(message);
-                    break;
-                case DataType.PlayerChangedControllingObject:
-                    PlayerChangedControllingObjectReceived(message);
-                    break;
-                case DataType.SyncedObjectAdded:
-                    SyncedObjectAddedReceived(message);
-                    break;
-                case DataType.SyncedObjectRemoved:
-                    SyncedObjectRemovedReceived(message);
-                    break;
-                case DataType.SyncedObjectChangedState:
-                    SyncedObjectChangedStateReceived(message);
-                    break;
-                case DataType.ChatMessage:
-                    ChatMessageReceived(message);
-                    break;
-                case DataType.Command:
-                    CommandReceived(message);
-                    break;
-            }
+            DataType type = (DataType)message.ReadByte();
+            
+            if(type == DataType.RegisterPlayer) RegisterPlayerReceived(message);
+            else if(_receivingDataMessages.TryGetValue(type, out Action<NetBuffer> action)) action(message);
+            else Console.WriteLine($"[WARN] Unknown message type received ({type.ToString()})");
         }
 
         private static void RegisterPlayerReceived(NetIncomingMessage message) {

@@ -18,7 +18,7 @@ namespace CatsAreOnline {
             set {
                 _displayOwnCat = value;
                 // ReSharper disable once ForeachCanBePartlyConvertedToQueryUsingAnotherGetEnumerator
-                foreach(KeyValuePair<Guid, SyncedObject> syncedObject in syncedObjectRegistry)
+                foreach(KeyValuePair<Guid, SyncedObject> syncedObject in _syncedObjectRegistry)
                     syncedObject.Value.UpdateRoom();
             }
         }
@@ -28,7 +28,7 @@ namespace CatsAreOnline {
             set {
                 _playerCollisions = value;
                 // ReSharper disable once ForeachCanBePartlyConvertedToQueryUsingAnotherGetEnumerator
-                foreach(KeyValuePair<Guid, SyncedObject> syncedObject in syncedObjectRegistry)
+                foreach(KeyValuePair<Guid, SyncedObject> syncedObject in _syncedObjectRegistry)
                     syncedObject.Value.UpdateRoom();
             }
         }
@@ -57,17 +57,22 @@ namespace CatsAreOnline {
                     _restoreFollowPlayerHead = FollowPlayer.followPlayerHead;
                     _restoreFollowTarget = FollowPlayer.customFollowTarget;
                     FollowPlayer.followPlayerHead = false;
-                    FollowPlayer.customFollowTarget = syncedObjectRegistry[value.controlling].transform;
+                    FollowPlayer.customFollowTarget = _syncedObjectRegistry[value.controlling].transform;
                 }
             }
         }
-        
-        public readonly Dictionary<string, Player> playerRegistry = new Dictionary<string, Player>();
-        public readonly Dictionary<Guid, SyncedObject> syncedObjectRegistry = new Dictionary<Guid, SyncedObject>();
+
+        public IReadOnlyDictionary<string, Player> playerRegistry => _playerRegistry;
+        public IReadOnlyDictionary<Guid, SyncedObject> syncedObjectRegistry => _syncedObjectRegistry;
+        public ICollection<Player> players => _playerRegistry.Values;
+        public ICollection<SyncedObject> syncedObjects => _syncedObjectRegistry.Values;
 
         public readonly ClientDebug debug = new ClientDebug();
+        
+        private readonly Dictionary<string, Player> _playerRegistry = new Dictionary<string, Player>();
+        private readonly Dictionary<Guid, SyncedObject> _syncedObjectRegistry = new Dictionary<Guid, SyncedObject>();
 
-        private readonly IReadOnlyDictionary<DataType, Action<NetBuffer>> _receivingMessages;
+        private readonly IReadOnlyDictionary<DataType, Action<NetBuffer>> _receivingDataMessages;
 
         private string _guid;
 
@@ -92,7 +97,7 @@ namespace CatsAreOnline {
             CapturedData.catPartManager ? (Vector2)CapturedData.catPartManager.GetCatCenter() : Vector2.zero;
 
         public Client() {
-            _receivingMessages = new Dictionary<DataType, Action<NetBuffer>> {
+            _receivingDataMessages = new Dictionary<DataType, Action<NetBuffer>> {
                 { DataType.RegisterPlayer, RegisterPlayerReceived },
                 { DataType.PlayerJoined, PlayerJoinedReceived },
                 { DataType.PlayerLeft, PlayerLeftReceived },
@@ -149,7 +154,7 @@ namespace CatsAreOnline {
         }
 
         public void UpdateAllNameTagsPositions() {
-            foreach(KeyValuePair<Guid, SyncedObject> syncedObject in syncedObjectRegistry)
+            foreach(KeyValuePair<Guid, SyncedObject> syncedObject in _syncedObjectRegistry)
                 syncedObject.Value.UpdateNameTagPosition(_nameTagCamera);
         }
 
@@ -222,7 +227,7 @@ namespace CatsAreOnline {
             message.Write(ownPlayer.room);
             SendMessageToServer(message, DeliveryMethods.Reliable);
             
-            foreach(KeyValuePair<Guid, SyncedObject> syncedObject in syncedObjectRegistry)
+            foreach(KeyValuePair<Guid, SyncedObject> syncedObject in _syncedObjectRegistry)
                 syncedObject.Value.UpdateRoom();
 
             catId = Guid.NewGuid();
@@ -320,10 +325,10 @@ namespace CatsAreOnline {
             Debug.Log("[CaO] Disconnected from the server");
             MultiplayerPlugin.connected.Value = false;
             _guid = null;
-            foreach(KeyValuePair<Guid, SyncedObject> syncedObject in syncedObjectRegistry)
+            foreach(KeyValuePair<Guid, SyncedObject> syncedObject in _syncedObjectRegistry)
                 syncedObject.Value.Remove();
-            syncedObjectRegistry.Clear();
-            playerRegistry.Clear();
+            _syncedObjectRegistry.Clear();
+            _playerRegistry.Clear();
             Chat.Chat.AddMessage($"Disconnected from the server ({reason})");
         }
 
@@ -333,7 +338,7 @@ namespace CatsAreOnline {
             
             debug.PrintServer(type);
 
-            if(_receivingMessages.TryGetValue(type, out Action<NetBuffer> action)) action(message);
+            if(_receivingDataMessages.TryGetValue(type, out Action<NetBuffer> action)) action(message);
             else Debug.LogWarning($"[CaO] [WARN] Unknown message type received: {type.ToString()}");
         }
 
@@ -345,7 +350,7 @@ namespace CatsAreOnline {
                 Player player = new Player(message.ReadString(), message.ReadString(), message.ReadString(),
                     Guid.Parse(message.ReadString()));
                 Debug.Log($"[CaO] Registering player {player.username}");
-                playerRegistry.Add(player.username, player);
+                _playerRegistry.Add(player.username, player);
             }
 
             int syncedObjectCount = message.ReadInt32();
@@ -353,7 +358,7 @@ namespace CatsAreOnline {
                 string username = message.ReadString();
                 SyncedObjectType type = (SyncedObjectType)message.ReadByte();
                 Guid id = Guid.Parse(message.ReadString());
-                if(!playerRegistry.TryGetValue(username, out Player player)) { // this should never happen
+                if(!_playerRegistry.TryGetValue(username, out Player player)) { // this should never happen
                     // skip the next data, as it's useless since we can't create the object
                     // because its owner doesn't exist (how?????)
                     Debug.LogError("[CaO] wtf, the owner didn't exist somehow");
@@ -362,7 +367,7 @@ namespace CatsAreOnline {
                 }
 
                 SyncedObject syncedObject = SyncedObject.Create(this, type, id, player, message);
-                syncedObjectRegistry.Add(syncedObject.id, syncedObject);
+                _syncedObjectRegistry.Add(syncedObject.id, syncedObject);
             }
 
             bool inCompanion = companionId != Guid.Empty && companionState != null;
@@ -377,13 +382,13 @@ namespace CatsAreOnline {
             Player player = new Player(message.ReadString(), message.ReadString(), message.ReadString(),
                 Guid.Parse(message.ReadString()));
             Debug.Log($"[CaO] Registering player {player.username}");
-            playerRegistry.Add(player.username, player);
+            _playerRegistry.Add(player.username, player);
             Chat.Chat.AddMessage($"Player {player.displayName} joined");
         }
         
         private void PlayerLeftReceived(NetBuffer message) {
             string username = message.ReadString();
-            if(!playerRegistry.TryGetValue(username, out Player player)) return;
+            if(!_playerRegistry.TryGetValue(username, out Player player)) return;
             
             Debug.Log($"[CaO] Player {player.username} left");
             Chat.Chat.AddMessage($"Player {player.displayName} left");
@@ -393,19 +398,19 @@ namespace CatsAreOnline {
                 Chat.Chat.AddMessage($"Stopped spectating <b>{username}</b> (player left)");
             }
 
-            List<Guid> toRemove = (from syncedObject in syncedObjectRegistry
+            List<Guid> toRemove = (from syncedObject in _syncedObjectRegistry
                                           where syncedObject.Value.owner.username == username select syncedObject.Key)
                 .ToList();
             foreach(Guid id in toRemove) {
-                syncedObjectRegistry[id].Remove();
-                syncedObjectRegistry.Remove(id);
+                _syncedObjectRegistry[id].Remove();
+                _syncedObjectRegistry.Remove(id);
             }
-            playerRegistry.Remove(username);
+            _playerRegistry.Remove(username);
         }
 
         private void PlayerChangedRoomReceived(NetBuffer message) {
             string username = message.ReadString();
-            if(!playerRegistry.TryGetValue(username, out Player player)) return;
+            if(!_playerRegistry.TryGetValue(username, out Player player)) return;
 
             string room = message.ReadString();
 
@@ -419,12 +424,12 @@ namespace CatsAreOnline {
                 Chat.Chat.AddMessage($"Stopped spectating <b>{username}</b> (player changed room)");
             }
 
-            List<Guid> toRemove = (from syncedObject in syncedObjectRegistry
+            List<Guid> toRemove = (from syncedObject in _syncedObjectRegistry
                                    where syncedObject.Value.owner.username == username
                                    select syncedObject.Key).ToList();
             foreach(Guid id in toRemove) {
-                syncedObjectRegistry[id].Remove();
-                syncedObjectRegistry.Remove(id);
+                _syncedObjectRegistry[id].Remove();
+                _syncedObjectRegistry.Remove(id);
             }
 
             player.room = room;
@@ -432,25 +437,25 @@ namespace CatsAreOnline {
 
         private void PlayerChangedControllingObjectReceived(NetBuffer message) {
             string username = message.ReadString();
-            if(!playerRegistry.TryGetValue(username, out Player player)) return;
+            if(!_playerRegistry.TryGetValue(username, out Player player)) return;
 
             player.controlling = Guid.Parse(message.ReadString());
 
             if(spectating != player) return;
-            FollowPlayer.customFollowTarget = syncedObjectRegistry[player.controlling].transform;
+            FollowPlayer.customFollowTarget = _syncedObjectRegistry[player.controlling].transform;
         }
 
         private void SyncedObjectAddedReceived(NetBuffer message) {
             string username = message.ReadString();
-            if(!playerRegistry.TryGetValue(username, out Player player)) return;
+            if(!_playerRegistry.TryGetValue(username, out Player player)) return;
             
             SyncedObjectType type = (SyncedObjectType)message.ReadByte();
             Guid id = Guid.Parse(message.ReadString());
 
-            if(syncedObjectRegistry.ContainsKey(id)) return;
+            if(_syncedObjectRegistry.ContainsKey(id)) return;
             
             SyncedObject syncedObject = SyncedObject.Create(this, type, id, player, message);
-            syncedObjectRegistry.Add(id, syncedObject);
+            _syncedObjectRegistry.Add(id, syncedObject);
 
             if(!_waitingForSpawn || id != _waitingForSpawnGuid) return;
             _waitingForSpawn = false;
@@ -460,20 +465,20 @@ namespace CatsAreOnline {
 
         private void SyncedObjectRemovedReceived(NetBuffer message) {
             Guid id = Guid.Parse(message.ReadString());
-            syncedObjectRegistry[id].Remove();
-            syncedObjectRegistry.Remove(id);
+            _syncedObjectRegistry[id].Remove();
+            _syncedObjectRegistry.Remove(id);
         }
         
         private void SyncedObjectChangedStateReceived(NetBuffer message) {
             Guid id = Guid.Parse(message.ReadString());
-            if(!syncedObjectRegistry.TryGetValue(id, out SyncedObject syncedObject)) return;
+            if(!_syncedObjectRegistry.TryGetValue(id, out SyncedObject syncedObject)) return;
 
             while(message.ReadByte(out byte stateTypeByte)) syncedObject.ReadChangedState(message, stateTypeByte);
         }
 
         private void ChatMessageReceived(NetBuffer message) {
             string username = message.ReadString();
-            if(!playerRegistry.TryGetValue(username, out Player player)) return;
+            if(!_playerRegistry.TryGetValue(username, out Player player)) return;
             
             string text = message.ReadString();
 

@@ -21,13 +21,13 @@ namespace CatsAreOnline {
         
         public static void Initialize() {
             descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Client>.Literal("help")
-                .Then(RequiredArgumentBuilder<Client, int>.Argument("page", IntegerArgumentType.Integer(1)).Executes(
-                context => {
+                .Then(RequiredArgumentBuilder<Client, int>.Argument("page", IntegerArgumentType.Integer(1))
+                    .Executes(context => {
                     HelpCommand(IntegerArgumentType.GetInteger(context, "page") - 1, context.Source);
                     return 1;
                 }))
-                .Then(RequiredArgumentBuilder<Client, string>.Argument("command", StringArgumentType.Word()).Executes(
-                    context => {
+                .Then(RequiredArgumentBuilder<Client, string>.Argument("command", StringArgumentType.Word())
+                    .Executes(context => {
                         HelpCommand(StringArgumentType.GetString(context, "command"), context.Source);
                         return 1;
                     }))
@@ -190,7 +190,7 @@ namespace CatsAreOnline {
         }
 
         private static void PlayersCommand(int page, bool printUsername, Client source) =>
-            PrintCollection(source.playerRegistry.Values, page, player => {
+            PrintCollection(source.players, page, player => {
             string displayName = $"{player.displayName} ";
             string username = printUsername ? $"({player.username}) " : "";
             string room = string.IsNullOrWhiteSpace(player.room) ? "" : $": {player.room}";
