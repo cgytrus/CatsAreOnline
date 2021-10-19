@@ -131,14 +131,6 @@ namespace CatsAreOnline.Chat {
             _inputField = UI.CreateInputField(fieldBackgroundTransform, "Type message...");
             _inputField.interactable = false;
             
-            /*Object.Destroy(_inputField.GetComponent<DisableEditingOnMouseOver>());
-            Object.Destroy(_inputField.placeholder.GetComponent<DisableEditingOnMouseOver>());
-            Object.Destroy(_inputField.textComponent.GetComponent<DisableEditingOnMouseOver>());*/
-
-            _inputField.GetComponent<DisableEditingOnMouseOver>().enabled = false;
-            _inputField.placeholder.GetComponent<DisableEditingOnMouseOver>().enabled = false;
-            _inputField.textComponent.GetComponent<DisableEditingOnMouseOver>().enabled = false;
-            
             RectTransform fieldTransform = _inputField.GetComponent<RectTransform>();
             fieldTransform.pivot = Vector2.zero;
             fieldTransform.anchorMin = Vector2.zero;

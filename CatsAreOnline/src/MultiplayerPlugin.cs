@@ -6,7 +6,6 @@ using BepInEx;
 using BepInEx.Configuration;
 
 using CaLAPI.API;
-using CaLAPI.API.ProphecySystem;
 
 using Cat;
 
@@ -21,8 +20,8 @@ using CatControls = CaLAPI.API.Cat.CatControls;
 using CatPartManager = CaLAPI.API.Cat.CatPartManager;
 
 namespace CatsAreOnline {
-    [BepInPlugin("mod.cgytrus.plugin.calOnline", "Cats are Online", "0.3.0")]
-    [BepInDependency("mod.cgytrus.plugins.calapi", "0.1.9")]
+    [BepInPlugin("mod.cgytrus.plugin.calOnline", "Cats are Online", "0.3.1")]
+    [BepInDependency("mod.cgytrus.plugins.calapi", "0.1.10")]
     public class MultiplayerPlugin : BaseUnityPlugin {
         public static ConfigEntry<bool> connected;
         private ConfigEntry<string> _username;
@@ -202,8 +201,8 @@ namespace CatsAreOnline {
                 _client.InitializeNameTags();
             };
 
-            Writer.awake += (_, args) => {
-                CapturedData.uiFont = args.font;
+            CaLAPI.API.TitleScreen.awake += (_, args) => {
+                CapturedData.uiFont = args.buttonFont;
             };
 
             CatControls.changedColor += (caller, args) => {
