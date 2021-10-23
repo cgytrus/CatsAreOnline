@@ -14,10 +14,9 @@ using UnityEngine;
 
 namespace CatsAreOnline {
     public static class Commands {
-        public static CommandDispatcher<Client> dispatcher { get; } = new CommandDispatcher<Client>();
+        public static CommandDispatcher<Client> dispatcher { get; } = new();
 
-        private static readonly Dictionary<CommandNode<Client>, string> descriptions =
-            new Dictionary<CommandNode<Client>, string>();
+        private static readonly Dictionary<CommandNode<Client>, string> descriptions = new();
         
         public static void Initialize() {
             descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Client>.Literal("help")

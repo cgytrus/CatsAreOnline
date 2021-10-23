@@ -36,11 +36,11 @@ namespace CatsAreOnline {
         public RectTransform nameTags { get; private set; }
 
         public bool canConnect => CapturedData.catPartManager && CapturedData.catControls && CapturedData.catSprite &&
-                                  CapturedData.iceSprite && nameTags && CapturedData.uiFont && _nameTagCamera;
+                                  CapturedData.iceSprite && nameTags && _nameTagCamera;
 
         public Player ownPlayer { get; private set; } =
-            new Player(null, null, null, Guid.Empty);
-        public CatSyncedObjectState catState { get; } = new CatSyncedObjectState();
+            new(null, null, null, Guid.Empty);
+        public CatSyncedObjectState catState { get; } = new();
         public CompanionSyncedObjectState companionState { get; private set; }
         public Guid catId { get; private set; }
         public Guid companionId { get; private set; }
@@ -67,10 +67,10 @@ namespace CatsAreOnline {
         public ICollection<Player> players => _playerRegistry.Values;
         public ICollection<SyncedObject> syncedObjects => _syncedObjectRegistry.Values;
 
-        public readonly ClientDebug debug = new ClientDebug();
+        public readonly ClientDebug debug = new();
         
-        private readonly Dictionary<string, Player> _playerRegistry = new Dictionary<string, Player>();
-        private readonly Dictionary<Guid, SyncedObject> _syncedObjectRegistry = new Dictionary<Guid, SyncedObject>();
+        private readonly Dictionary<string, Player> _playerRegistry = new();
+        private readonly Dictionary<Guid, SyncedObject> _syncedObjectRegistry = new();
 
         private readonly IReadOnlyDictionary<DataType, Action<NetBuffer>> _receivingDataMessages;
 
@@ -114,7 +114,7 @@ namespace CatsAreOnline {
             _restoreFollowPlayerHead = FollowPlayer.followPlayerHead;
             _restoreFollowTarget = FollowPlayer.customFollowTarget;
             
-            NetPeerConfiguration config = new NetPeerConfiguration("mod.cgytrus.plugin.calOnline");
+            NetPeerConfiguration config = new("mod.cgytrus.plugin.calOnline");
             
             config.DisableMessageType(NetIncomingMessageType.Receipt);
             config.DisableMessageType(NetIncomingMessageType.ConnectionApproval);
@@ -160,7 +160,7 @@ namespace CatsAreOnline {
 
         public void InitializeNameTags() {
             _nameTagCamera = Camera.main;
-            GameObject nameTags = new GameObject("Name Tags") { layer = LayerMask.NameToLayer("UI") };
+            GameObject nameTags = new("Name Tags") { layer = LayerMask.NameToLayer("UI") };
             Object.DontDestroyOnLoad(nameTags);
 
             RectTransform nameTagsTransform = nameTags.AddComponent<RectTransform>();
@@ -347,7 +347,7 @@ namespace CatsAreOnline {
             
             int playerCount = message.ReadInt32();
             for(int i = 0; i < playerCount; i++) {
-                Player player = new Player(message.ReadString(), message.ReadString(), message.ReadString(),
+                Player player = new(message.ReadString(), message.ReadString(), message.ReadString(),
                     Guid.Parse(message.ReadString()));
                 Debug.Log($"[CaO] Registering player {player.username}");
                 _playerRegistry.Add(player.username, player);
@@ -379,7 +379,7 @@ namespace CatsAreOnline {
         }
 
         private void PlayerJoinedReceived(NetBuffer message) {
-            Player player = new Player(message.ReadString(), message.ReadString(), message.ReadString(),
+            Player player = new(message.ReadString(), message.ReadString(), message.ReadString(),
                 Guid.Parse(message.ReadString()));
             Debug.Log($"[CaO] Registering player {player.username}");
             _playerRegistry.Add(player.username, player);

@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Diagnostics;
 
+using CaLAPI.API;
+
 using CatsAreOnline.Shared;
 using CatsAreOnline.Shared.StateTypes;
 
@@ -137,10 +139,10 @@ namespace CatsAreOnline.SyncedObjects {
             float scale = message.ReadFloat();
             float rotation = message.ReadFloat();
                     
-            GameObject obj = new GameObject($"OnlinePlayer_{owner.username}_{type.ToString()}") { layer = 0 };
+            GameObject obj = new($"OnlinePlayer_{owner.username}_{type.ToString()}") { layer = 0 };
             DontDestroyOnLoad(obj);
 
-            GameObject rendererObject = new GameObject($"{obj.name}_Renderer") { layer = 0 };
+            GameObject rendererObject = new($"{obj.name}_Renderer") { layer = 0 };
             DontDestroyOnLoad(rendererObject);
             SpriteRenderer renderer = rendererObject.AddComponent<SpriteRenderer>();
             renderer.sortingOrder = -50;
@@ -164,8 +166,7 @@ namespace CatsAreOnline.SyncedObjects {
                     cat.state.client = client;
                     cat.id = id;
                     cat.owner = owner;
-                    cat.nameTag = CreatePlayerNameTag(owner.username, owner.displayName, client.nameTags,
-                        CapturedData.uiFont);
+                    cat.nameTag = CreatePlayerNameTag(owner.username, owner.displayName, client.nameTags, UI.font);
                     cat.renderer = renderer;
                     cat.rigidbody = rigidbody;
                     cat.catCollider = catCollider;
@@ -188,8 +189,8 @@ namespace CatsAreOnline.SyncedObjects {
                     companion.state.client = client;
                     companion.id = id;
                     companion.owner = owner;
-                    companion.nameTag = CreatePlayerNameTag(owner.username, owner.displayName, client.nameTags,
-                        CapturedData.uiFont);
+                    companion.nameTag =
+                        CreatePlayerNameTag(owner.username, owner.displayName, client.nameTags, UI.font);
                     companion.renderer = renderer;
                     companion.rigidbody = rigidbody;
                     companion.collider = companionCollider;
@@ -208,7 +209,7 @@ namespace CatsAreOnline.SyncedObjects {
         }
         
         private static Text CreatePlayerNameTag(string username, string displayName, Transform parent, Font font) {
-            GameObject nameTag = new GameObject($"OnlinePlayerNameTag_{username}") {
+            GameObject nameTag = new($"OnlinePlayerNameTag_{username}") {
                 layer = LayerMask.NameToLayer("UI")
             };
             DontDestroyOnLoad(nameTag);

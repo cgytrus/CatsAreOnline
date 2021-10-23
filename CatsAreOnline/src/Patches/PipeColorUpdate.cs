@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using CaLAPI.Patches;
 
 using HarmonyLib;
 
@@ -7,16 +7,16 @@ using PipeSystem;
 using UnityEngine;
 
 namespace CatsAreOnline.Patches {
-    [SuppressMessage("ReSharper", "InconsistentNaming")]
-    public static class PipeColorUpdate {
-        [HarmonyPatch(typeof(PipeCatRepresentation), "LateUpdate")]
-        [HarmonyPostfix]
-        public static void UpdatePipeColor(Material[] ___materials) {
-            foreach(Material material in ___materials) {
+    // ReSharper disable once UnusedType.Global
+    internal class PipeColorUpdate : IPatch {
+        public void Apply() => On.PipeSystem.PipeCatRepresentation.LateUpdate += (orig, self) => {
+            orig(self);
+            foreach(Material material in (Material[])AccessTools.Field(typeof(PipeCatRepresentation), "materials")
+                .GetValue(self)) {
                 if(!material) continue;
                 CapturedData.catPipeColor = material.color;
                 break;
             }
-        }
+        };
     }
 }

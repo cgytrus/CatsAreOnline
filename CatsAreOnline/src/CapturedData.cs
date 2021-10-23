@@ -24,7 +24,5 @@ namespace CatsAreOnline {
 
         public static bool inJunction { get; set; }
         public static Vector2 junctionPosition { get; set; }
-        
-        public static Font uiFont { get; set; }
     }
 }

@@ -12,8 +12,8 @@ namespace CatsAreOnline.Chat {
     public static class Chat {
         public static int messagesCapacity { get; set; } = 10;
         public static int historyCapacity { get; set; } = 100;
-        public static readonly List<Message> messages = new List<Message>(messagesCapacity);
-        public static readonly List<string> history = new List<string>(historyCapacity);
+        public static readonly List<Message> messages = new(messagesCapacity);
+        public static readonly List<string> history = new(historyCapacity);
 
         public static float fadeOutDelay { get; set; }
 

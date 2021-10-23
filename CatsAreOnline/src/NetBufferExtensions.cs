@@ -4,9 +4,9 @@ using UnityEngine;
 
 namespace CatsAreOnline {
     public static class NetBufferExtensions {
-        public static Vector2 ReadVector2(this NetBuffer buffer) => new Vector2(buffer.ReadFloat(), buffer.ReadFloat());
+        public static Vector2 ReadVector2(this NetBuffer buffer) => new(buffer.ReadFloat(), buffer.ReadFloat());
         public static Color ReadColor(this NetBuffer buffer) =>
-            new Color(buffer.ReadFloat(), buffer.ReadFloat(), buffer.ReadFloat(), buffer.ReadFloat());
+            new(buffer.ReadFloat(), buffer.ReadFloat(), buffer.ReadFloat(), buffer.ReadFloat());
         
         public static void Write(this NetBuffer buffer, Vector2 source) {
             buffer.Write(source.x);

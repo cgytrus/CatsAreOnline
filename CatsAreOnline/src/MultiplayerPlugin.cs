@@ -6,23 +6,35 @@ using BepInEx;
 using BepInEx.Configuration;
 
 using CaLAPI.API;
+using CaLAPI.API.Cat;
 
 using Cat;
 
-using CatsAreOnline.Patches;
 using CatsAreOnline.SyncedObjects;
 
 using HarmonyLib;
 
-using UnityEngine;
+using Mono.Cecil.Cil;
 
-using CatControls = CaLAPI.API.Cat.CatControls;
-using CatPartManager = CaLAPI.API.Cat.CatPartManager;
+using MonoMod.Cil;
+
+using UnityEngine;
+using UnityEngine.UI;
 
 namespace CatsAreOnline {
-    [BepInPlugin("mod.cgytrus.plugin.calOnline", "Cats are Online", "0.3.1")]
-    [BepInDependency("mod.cgytrus.plugins.calapi", "0.1.10")]
-    public class MultiplayerPlugin : BaseUnityPlugin {
+    internal readonly struct ParsedIp {
+        public string ip { get; }
+        public int port { get; }
+
+        public ParsedIp(string ip, int port) {
+            this.ip = ip;
+            this.port = port;
+        }
+    }
+
+    [BepInPlugin("mod.cgytrus.plugins.calOnline", "Cats are Online", "0.3.2")]
+    [BepInDependency("mod.cgytrus.plugins.calapi", "0.2.0")]
+    internal class MultiplayerPlugin : BaseUnityPlugin {
         public static ConfigEntry<bool> connected;
         private ConfigEntry<string> _username;
         private ConfigEntry<string> _displayName;
@@ -46,18 +58,25 @@ namespace CatsAreOnline {
 
         private bool _update;
 
-        private readonly FieldInfo _companionFieldInfo = AccessTools.Field(typeof(Cat.CatControls), "companion");
-        private readonly FieldInfo _liquidParticleMaterialFieldInfo =
-            AccessTools.Field(typeof(Cat.CatControls), "liquidParticleMaterial");
-
         private void Awake() {
-            Harmony.CreateAndPatchAll(typeof(JunctionUpdates));
-            Harmony.CreateAndPatchAll(typeof(IceRotationUpdates));
-            Harmony.CreateAndPatchAll(typeof(ChatControlBlock));
-            Harmony.CreateAndPatchAll(typeof(PipeColorUpdate));
-            Harmony.CreateAndPatchAll(typeof(CurrentIceUpdates));
-            
-            // i'm sincerely sorry for this kind of configuration code
+            CreateSettings();
+            Logger.LogInfo("Creating client");
+            _client = new Client();
+            CapturedData.catState = State.Normal;
+            CapturedData.catScale = CapturedData.catState.GetScale();
+            SetupSettings();
+
+            Logger.LogInfo("Initializing commands");
+            Commands.Initialize();
+
+            ApplyHooks();
+            Logger.LogInfo("Applying patches");
+            Util.ApplyAllPatches();
+        }
+
+        private void CreateSettings() {
+            Logger.LogInfo("Creating settings");
+
             connected = Config.Bind("General", "Connected", false, "");
             _username = Config.Bind("General", "Username", "", "Your internal name");
             _displayName = Config.Bind("General", "Display Name", "",
@@ -74,121 +93,96 @@ namespace CatsAreOnline {
             _historyDown = Config.Bind("General", "History Down", new KeyboardShortcut(KeyCode.DownArrow), "");
             _messageFadeOutDelay = Config.Bind("Chat", "Message Fade Out Delay", 5f, "");
             _messageFadeOutSpeed = Config.Bind("Chat", "Message Fade Out Speed", 1f, "");
-            
+
             _interpolationMode = Config.Bind("Advanced", "Interpolation Mode",
                 SyncedObject.InterpolationSettings.InterpolationMode.Lerp, "");
             _interpolationTime = Config.Bind("Advanced", "Interpolation Time", 3d, "");
             _interpolationPacketsToAverage = Config.Bind("Advanced", "Interpolation Packets To Average", 20, "");
             _interpolationMaxTime = Config.Bind("Advanced", "Interpolation Max Time", 10d, "");
+        }
 
+        private void SetupSettings() {
+            Logger.LogInfo("Setting settings up");
+            
             connected.Value = false;
-
-            _client = new Client();
-
-            Commands.Initialize();
-
-            CapturedData.catState = State.Normal;
-            CapturedData.catScale = CapturedData.catState.GetScale();
-            connected.SettingChanged += (_, __) => {
+            connected.SettingChanged += (_, _) => {
                 if(!SetConnected(connected.Value)) connected.Value = false;
             };
 
             _client.displayOwnCat = _displayOwnCat.Value;
-            _displayOwnCat.SettingChanged += (_, __) => _client.displayOwnCat = _displayOwnCat.Value;
+            _displayOwnCat.SettingChanged += (_, _) => _client.displayOwnCat = _displayOwnCat.Value;
 
             _client.playerCollisions = _interactions.Value;
-            _interactions.SettingChanged += (_, __) => _client.playerCollisions = _interactions.Value;
+            _interactions.SettingChanged += (_, _) => _client.playerCollisions = _interactions.Value;
 
             Chat.Chat.messagesCapacity = _chatCapacity.Value;
-            _chatCapacity.SettingChanged += (_, __) => Chat.Chat.messagesCapacity = _chatCapacity.Value;
+            _chatCapacity.SettingChanged += (_, _) => Chat.Chat.messagesCapacity = _chatCapacity.Value;
 
             Chat.Chat.historyCapacity = _historyCapacity.Value;
-            _historyCapacity.SettingChanged += (_, __) => Chat.Chat.historyCapacity = _historyCapacity.Value;
+            _historyCapacity.SettingChanged += (_, _) => Chat.Chat.historyCapacity = _historyCapacity.Value;
 
             Chat.Chat.fadeOutDelay = _messageFadeOutDelay.Value;
-            _messageFadeOutDelay.SettingChanged += (_, __) => Chat.Chat.fadeOutDelay = _messageFadeOutDelay.Value;
+            _messageFadeOutDelay.SettingChanged += (_, _) => Chat.Chat.fadeOutDelay = _messageFadeOutDelay.Value;
 
             Chat.Chat.fadeOutSpeed = _messageFadeOutSpeed.Value;
-            _messageFadeOutSpeed.SettingChanged += (_, __) => Chat.Chat.fadeOutSpeed = _messageFadeOutSpeed.Value;
+            _messageFadeOutSpeed.SettingChanged += (_, _) => Chat.Chat.fadeOutSpeed = _messageFadeOutSpeed.Value;
 
             SyncedObject.interpolationSettings = new SyncedObject.InterpolationSettings(_interpolationMode.Value,
                 _interpolationTime.Value, _interpolationPacketsToAverage.Value, _interpolationMaxTime.Value);
-            _interpolationMode.SettingChanged += (_, __) => SyncedObject.interpolationSettings =
+            _interpolationMode.SettingChanged += (_, _) => SyncedObject.interpolationSettings =
                 new SyncedObject.InterpolationSettings(_interpolationMode.Value, SyncedObject.interpolationSettings.time,
                     SyncedObject.interpolationSettings.packetsToAverage, SyncedObject.interpolationSettings.maxTime);
-            _interpolationTime.SettingChanged += (_, __) => SyncedObject.interpolationSettings =
+            _interpolationTime.SettingChanged += (_, _) => SyncedObject.interpolationSettings =
                 new SyncedObject.InterpolationSettings(SyncedObject.interpolationSettings.mode, _interpolationTime.Value,
                     SyncedObject.interpolationSettings.packetsToAverage, SyncedObject.interpolationSettings.maxTime);
-            _interpolationPacketsToAverage.SettingChanged += (_, __) => SyncedObject.interpolationSettings =
-                new SyncedObject.InterpolationSettings(SyncedObject.interpolationSettings.mode, SyncedObject.interpolationSettings.time,
+            _interpolationPacketsToAverage.SettingChanged += (_, _) => SyncedObject.interpolationSettings =
+                new SyncedObject.InterpolationSettings(SyncedObject.interpolationSettings.mode,
+                    SyncedObject.interpolationSettings.time,
                     _interpolationPacketsToAverage.Value, SyncedObject.interpolationSettings.maxTime);
-            _interpolationMaxTime.SettingChanged += (_, __) => SyncedObject.interpolationSettings =
-                new SyncedObject.InterpolationSettings(SyncedObject.interpolationSettings.mode, SyncedObject.interpolationSettings.time,
+            _interpolationMaxTime.SettingChanged += (_, _) => SyncedObject.interpolationSettings =
+                new SyncedObject.InterpolationSettings(SyncedObject.interpolationSettings.mode,
+                    SyncedObject.interpolationSettings.time,
                     SyncedObject.interpolationSettings.packetsToAverage, _interpolationMaxTime.Value);
+        }
 
-            CatPartManager.awake += (caller, args) => {
-                Cat.CatPartManager partManager = (Cat.CatPartManager)caller;
-                
-                if(!partManager.GetComponent<PlayerActor>()) return;
-                
-                CapturedData.catSprite = args.noMetaballsPartTexture;
-                CapturedData.catPartManager = partManager;
+        private void ApplyHooks() {
+            Logger.LogInfo("Applying hooks");
+
+            FieldInfo noMetaballsPartTexture = AccessTools.Field(typeof(Cat.CatPartManager), "noMetaballsPartTexture");
+            On.Cat.CatPartManager.Awake += (orig, self) => {
+                orig(self);
+                if(!self.GetComponent<PlayerActor>()) return;
+
+                CapturedData.catSprite = (Sprite)noMetaballsPartTexture!.GetValue(self);
+                CapturedData.catPartManager = self;
             };
 
-            CatControls.awake += (caller, _) => {
-                Cat.CatControls controls = (Cat.CatControls)caller;
-                
-                if(!controls.GetComponent<PlayerActor>()) return;
+            On.Cat.CatControls.Awake += (orig, self) => {
+                orig(self);
+                if(!self.GetComponent<PlayerActor>()) return;
 
-                CapturedData.catColor = ((Material)_liquidParticleMaterialFieldInfo.GetValue(caller)).color;
-                
+                CapturedData.catColor = self.GetCurrentConfigurationColor();
+
                 GameObject catIcePrefab =
-                    (GameObject)AccessTools.Field(typeof(Cat.CatControls), "catIcePrefab").GetValue(caller);
-                SpriteRenderer catIceMainRenderer = (SpriteRenderer)AccessTools.Field(typeof(IceBlock), "mainSprite")
+                    (GameObject)AccessTools.Field(typeof(Cat.CatControls), "catIcePrefab").GetValue(self);
+                SpriteRenderer catIceMainRenderer =
+                    (SpriteRenderer)AccessTools.Field(typeof(IceBlock), "mainSprite")
                     .GetValue(catIcePrefab.GetComponent<IceBlock>());
 
                 CapturedData.iceSprite = catIceMainRenderer.sprite;
                 CapturedData.iceColor = catIceMainRenderer.color;
-                CapturedData.catControls = controls;
+                CapturedData.catControls = self;
 
-                controls.StateSwitchAction += state => {
-                    CapturedData.catState = (State)state;
-                    CapturedData.catScale = CapturedData.catState.GetScale();
-                };
-
-                controls.ControlTargetChangedAction += target => {
-                    switch(target) {
-                        case Cat.CatControls.ControlTarget.Player:
-                            _client.ChangeControllingObject(_client.catId);
-                            break;
-                        case Cat.CatControls.ControlTarget.Companion:
-                            if(_client.companionId == Guid.Empty) break;
-                            _client.ChangeControllingObject(_client.companionId);
-                            break;
-                    }
-                };
-
-                controls.CompanionToggeledAction += enabled => {
-                    if(enabled) {
-                        Companion companion = (Companion)_companionFieldInfo.GetValue(caller);
-                        CapturedData.companionTransform = companion.transform;
-                        SpriteRenderer renderer = CapturedData.companionTransform.Find("Companion Sprite")
-                            .GetComponent<SpriteRenderer>();
-                        CapturedData.companionSprite = renderer.sprite;
-                        CapturedData.companionColor = renderer.color;
-
-                        _client.AddCompanion();
-                    }
-                    else {
-                        CapturedData.companionTransform = null;
-                        _client.RemoveCompanion();
-                    }
-                };
+                SubscribeToCatControlsEvents(self);
             };
 
-            CaLAPI.API.PauseScreen.roomInfoUpdated += (_, args) => {
-                if(args.newRoom == _client.ownPlayer.room) return;
-                _client.ownPlayer.room = args.newRoom;
+            // TODO: change to use room guid for actual room check
+            FieldInfo roomInfo = AccessTools.Field(typeof(PauseScreen), "roomInfo");
+            On.PauseScreen.UpdateRoomInfo += (orig, self, path) => {
+                orig(self, path);
+                string newRoom = ((Text)roomInfo!.GetValue(self)).text;
+                if(newRoom == _client.ownPlayer.room) return;
+                _client.ownPlayer.room = newRoom;
                 _client.UpdateRoom();
             };
 
@@ -197,32 +191,81 @@ namespace CatsAreOnline {
                 _client.UpdateRoom();
             };
 
-            CaLAPI.API.CanvasManager.awake += (_, args) => {
+            On.CanvasManager.Awake += (orig, self) => {
+                orig(self);
                 _client.InitializeNameTags();
             };
 
-            CaLAPI.API.TitleScreen.awake += (_, args) => {
-                CapturedData.uiFont = args.buttonFont;
+            // ReSharper disable once SuggestBaseTypeForParameter
+            void ChangedColor(Cat.CatControls self, Color newColor) {
+                if(!self.GetComponent<PlayerActor>()) return;
+                CapturedData.catColor = newColor;
+            }
+
+            // MM HookGen can't hook properly cuz of the arg being an internal struct so we do il manually
+            IL.Cat.CatControls.ApplyConfiguration += il => {
+                ILCursor cursor = new(il);
+                cursor.GotoNext(code => code.MatchRet());
+                cursor.Emit(OpCodes.Ldarg_0);
+                cursor.Emit(OpCodes.Ldarg_0);
+                cursor.EmitDelegate<Func<Cat.CatControls, Color>>(CatControlsExtensions.GetCurrentConfigurationColor);
+                cursor.EmitDelegate<Action<Cat.CatControls, Color>>(ChangedColor);
+            };
+            /*On.Cat.CatControls.ApplyConfiguration += (orig, self, configuration) => {
+                orig(self, configuration);
+                ChangedColor(self, self.GetCurrentConfigurationColor());
+            };*/
+            On.Cat.CatControls.ApplyColor += (orig, self, color, featureColor) => {
+                orig(self, color, featureColor);
+                ChangedColor(self, color);
             };
 
-            CatControls.changedColor += (caller, args) => {
-                Cat.CatControls controls = (Cat.CatControls)caller;
-                
-                if(!controls.GetComponent<PlayerActor>()) return;
+            UI.initialized += (_, _) => { Chat.Chat.Initialize(_client); };
+        }
 
-                CapturedData.catColor = args.newColor;
+        private void SubscribeToCatControlsEvents(CatControls controls) {
+            controls.StateSwitchAction += state => {
+                CapturedData.catState = (State)state;
+                CapturedData.catScale = CapturedData.catState.GetScale();
             };
 
-            UI.initialized += (_, __) => {
-                Chat.Chat.Initialize(_client);
+            controls.ControlTargetChangedAction += ControlTargetChanged;
+            void ControlTargetChanged(CatControls.ControlTarget target) {
+                switch(target) {
+                    case Cat.CatControls.ControlTarget.Player:
+                        _client.ChangeControllingObject(_client.catId);
+                        break;
+                    case Cat.CatControls.ControlTarget.Companion:
+                        if(_client.companionId == Guid.Empty) break;
+                        _client.ChangeControllingObject(_client.companionId);
+                        break;
+                }
+            }
+
+            controls.CompanionToggeledAction += enabled => {
+                if(enabled) {
+                    Companion companion =
+                        (Companion)AccessTools.Field(typeof(Cat.CatControls), "companion").GetValue(controls);
+                    CapturedData.companionTransform = companion.transform;
+                    SpriteRenderer renderer = CapturedData.companionTransform.Find("Companion Sprite")
+                        .GetComponent<SpriteRenderer>();
+                    CapturedData.companionSprite = renderer.sprite;
+                    CapturedData.companionColor = renderer.color;
+
+                    _client.AddCompanion();
+                }
+                else {
+                    CapturedData.companionTransform = null;
+                    _client.RemoveCompanion();
+                }
             };
         }
 
         private bool SetConnected(bool connected) {
             if(connected) {
                 if(!_client.canConnect) return false;
-                (string ip, int port) = ParseIp(_address.Value);
-                _client.Connect(ip, port, _username.Value, _displayName.Value);
+                ParsedIp ip = ParseIp(_address.Value);
+                _client.Connect(ip.ip, ip.port, _username.Value, _displayName.Value);
             }
             else _client.Disconnect();
 
@@ -251,9 +294,9 @@ namespace CatsAreOnline {
 
         private void OnApplicationQuit() => SetConnected(false);
 
-        private static (string, int) ParseIp(string ip) {
+        private static ParsedIp ParseIp(string ip) {
             string[] ipPort = ip.Split(':');
-            return (ipPort[0], int.Parse(ipPort[1], CultureInfo.InvariantCulture));
+            return new ParsedIp(ipPort[0], int.Parse(ipPort[1], CultureInfo.InvariantCulture));
         }
     }
 }

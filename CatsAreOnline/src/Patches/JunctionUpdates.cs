@@ -1,25 +1,29 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System.Reflection;
+
+using CaLAPI.Patches;
 
 using HarmonyLib;
 
 using PipeSystem;
 
 namespace CatsAreOnline.Patches {
-    [SuppressMessage("ReSharper", "InconsistentNaming")]
-    public static class JunctionUpdates {
-        [HarmonyPatch(typeof(PipeJunction), "EnterJunction", typeof(PipeObject))]
-        [HarmonyPostfix]
-        private static void EnterClientJunction(PipeJunction __instance, PipeObject pipeObject) {
-            if(AccessTools.Field(typeof(PipeObject), "controller").GetValue(pipeObject) == null) return;
-            CapturedData.junctionPosition = __instance.transform.position;
-            CapturedData.inJunction = true;
-        }
+    // ReSharper disable once UnusedType.Global
+    internal class JunctionUpdates : IPatch {
+        private static readonly FieldInfo controller = AccessTools.Field(typeof(PipeObject), "controller");
         
-        [HarmonyPatch(typeof(PipeJunction), "ExitJunction", typeof(PipeObject), typeof(PipeEndPoint))]
-        [HarmonyPostfix]
-        private static void ExitClientJunction(PipeJunction __instance, PipeObject pipeObject) {
-            if(AccessTools.Field(typeof(PipeObject), "controller").GetValue(pipeObject) == null) return;
-            CapturedData.inJunction = false;
+        public void Apply() {
+            On.PipeSystem.PipeJunction.EnterJunction += (orig, self, pipeObject) => {
+                orig(self, pipeObject);
+                if(controller.GetValue(pipeObject) == null) return;
+                CapturedData.junctionPosition = self.transform.position;
+                CapturedData.inJunction = true;
+            };
+
+            On.PipeSystem.PipeJunction.ExitJunction += (orig, self, pipeObject, point) => {
+                orig(self, pipeObject, point);
+                if(controller.GetValue(pipeObject) == null) return;
+                CapturedData.inJunction = false;
+            };
         }
     }
 }

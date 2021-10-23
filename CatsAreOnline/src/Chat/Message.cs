@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿using CaLAPI.API;
+
+using UnityEngine;
 using UnityEngine.UI;
 
 namespace CatsAreOnline.Chat {
@@ -15,7 +17,7 @@ namespace CatsAreOnline.Chat {
                 this.text = obj.GetComponent<Text>();
             }
             else {*/
-            GameObject obj = new GameObject("Message") { layer = LayerMask.NameToLayer("UI") };
+            GameObject obj = new("Message") { layer = LayerMask.NameToLayer("UI") };
             Object.DontDestroyOnLoad(obj);
 
             RectTransform transform = obj.AddComponent<RectTransform>();
@@ -25,7 +27,7 @@ namespace CatsAreOnline.Chat {
             transform.sizeDelta = new Vector2(0f, 30f);
 
             this.text = obj.AddComponent<Text>();
-            this.text.font = CapturedData.uiFont;
+            this.text.font = UI.font;
             this.text.alignment = TextAnchor.LowerLeft;
             this.text.fontSize = 28;
             this.text.supportRichText = true;

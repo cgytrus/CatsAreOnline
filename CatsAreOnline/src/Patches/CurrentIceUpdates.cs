@@ -1,28 +1,21 @@
-﻿using System.Diagnostics.CodeAnalysis;
-
-using HarmonyLib;
-
-using UnityEngine;
+﻿using CaLAPI.Patches;
 
 namespace CatsAreOnline.Patches {
-    [SuppressMessage("ReSharper", "InconsistentNaming")]
-    public static class CurrentIceUpdates {
-        [HarmonyPatch(typeof(Cat.CatControls), "ActivateIce")]
-        [HarmonyPostfix]
-        private static void ActivateIce(GameObject ___currentCatIce) {
-            if(!___currentCatIce) {
-                CapturedData.inIce = false;
-                return;
-            }
-            CapturedData.iceBlock = ___currentCatIce.GetComponent<IceBlock>();
-            CapturedData.inIce = true;
-        }
+    // ReSharper disable once UnusedType.Global
+    internal class CurrentIceUpdates : IPatch {
+        public void Apply() {
+            On.Cat.CatControls.ActivateIce += (orig, self) => {
+                orig(self);
+                CapturedData.inIce = self.IsCatIceActive();
+                if(!CapturedData.inIce) return;
+                CapturedData.iceBlock = self.GetActiveCatIce().GetComponent<IceBlock>();
+            };
 
-        [HarmonyPatch(typeof(Cat.CatControls), "DeactivateIce")]
-        [HarmonyPostfix]
-        private static void DeactivateIce() {
-            CapturedData.inIce = false;
-            CapturedData.iceBlock = null;
+            On.Cat.CatControls.DeactivateIce += (orig, self, destroyed) => {
+                orig(self, destroyed);
+                CapturedData.inIce = false;
+                CapturedData.iceBlock = null;
+            };
         }
     }
 }

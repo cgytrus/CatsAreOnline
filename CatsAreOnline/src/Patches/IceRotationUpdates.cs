@@ -1,17 +1,12 @@
-﻿using System.Diagnostics.CodeAnalysis;
-
-using HarmonyLib;
-
-using UnityEngine;
+﻿using CaLAPI.Patches;
 
 namespace CatsAreOnline.Patches {
-    [SuppressMessage("ReSharper", "InconsistentNaming")]
-    public static class IceRotationUpdates {
-        [HarmonyPatch(typeof(Cat.CatControls), "FixedUpdate")]
-        [HarmonyPostfix]
-        private static void UpdateIceRotation(Cat.CatControls __instance, GameObject ___currentCatIce) {
-            if(__instance != CapturedData.catControls || !___currentCatIce) return;
-            CapturedData.iceRotation = ___currentCatIce.transform.eulerAngles.z;
-        }
+    // ReSharper disable once UnusedType.Global
+    internal class IceRotationUpdates : IPatch {
+        public void Apply() => On.Cat.CatControls.FixedUpdate += (orig, self) => {
+            orig(self);
+            if(self != CapturedData.catControls || !self.IsCatIceActive()) return;
+            CapturedData.iceRotation = self.GetActiveCatIce().transform.eulerAngles.z;
+        };
     }
 }
