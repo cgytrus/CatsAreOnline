@@ -19,16 +19,17 @@ namespace CatsAreOnlineServer {
 
         private static readonly Dictionary<Guid, Player> playerRegistry = new();
         private static readonly Dictionary<Guid, SyncedObject> syncedObjectRegistry = new();
-        
+
         private static NetServer _server;
         private static readonly List<NetConnection> tempConnections = new();
-        
+
         private static IReadOnlyDictionary<DataType, Action<NetBuffer>> _receivingDataMessages;
 
         public static void Main(string[] args) {
             bool upnp = false;
             if(args.Length <= 0 || !int.TryParse(args[0], out int port) ||
                args.Length >= 2 && !bool.TryParse(args[1], out upnp)) {
+                Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("Invalid arguments.");
                 return;
             }
@@ -42,14 +43,14 @@ namespace CatsAreOnlineServer {
                 { DataType.ChatMessage, ChatMessageReceived },
                 { DataType.Command, CommandReceived }
             };
-            
+
             Commands.Initialize();
-            
+
             NetPeerConfiguration config = new("mod.cgytrus.plugins.calOnline") {
                 Port = port,
                 EnableUPnP = true
             };
-            
+
             config.DisableMessageType(NetIncomingMessageType.Receipt);
             config.DisableMessageType(NetIncomingMessageType.ConnectionApproval);
             config.DisableMessageType(NetIncomingMessageType.DebugMessage);
@@ -62,13 +63,38 @@ namespace CatsAreOnlineServer {
 
             _server = new NetServer(config);
 
+            Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"Starting server (v{Version}) on port {port.ToString(CultureInfo.InvariantCulture)}");
+            Console.ResetColor();
             _server.Start();
-            
+
+            // doesn't seem to work?
             if(upnp) _server.UPnP.ForwardPort(port, "Cats are Liquid - A Better Place");
 
+            while(_server.Status != NetPeerStatus.Running) { }
+
+            Thread serverThread = new(ServerThread);
+            serverThread.Start();
+
+            while(_server.Status == NetPeerStatus.Running) {
+                string command = Console.ReadLine();
+                if(_server.Status != NetPeerStatus.Running) break;
+                ExecuteCommand(null, command);
+            }
+
+            try { serverThread.Join(); }
+            catch(Exception) { /* ignored */ }
+        }
+
+        public static void Stop() {
+            Console.WriteLine("Stopping server...");
+            _server.Shutdown("Server closed");
+            _server.UPnP.DeleteForwardingRule(_server.Port);
+        }
+
+        private static void ServerThread() {
             Stopwatch stopwatch = Stopwatch.StartNew();
-            while(true) {
+            while(_server.Status == NetPeerStatus.Running) {
                 stopwatch.Restart();
                 
                 NetIncomingMessage message;
@@ -82,11 +108,6 @@ namespace CatsAreOnlineServer {
             }
         }
 
-        public static void Stop() {
-            _server.Shutdown("Server closed");
-            _server.UPnP.DeleteForwardingRule(_server.Port);
-        }
-
         private static void MessageReceived(NetIncomingMessage message) {
             switch(message.MessageType) {
                 case NetIncomingMessageType.Data:
@@ -96,14 +117,20 @@ namespace CatsAreOnlineServer {
                     StatusChangedMessageReceived(message);
                     break;
                 case NetIncomingMessageType.WarningMessage:
+                    Console.ForegroundColor = ConsoleColor.Yellow;
                     Console.WriteLine($"[WARN] {message.ReadString()}");
+                    Console.ResetColor();
                     break;
                 case NetIncomingMessageType.Error:
                 case NetIncomingMessageType.ErrorMessage:
+                    Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine($"[ERROR] {message.ReadString()}");
+                    Console.ResetColor();
                     break;
                 default:
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
                     Console.WriteLine($"[UNHANDLED] {message.MessageType}");
+                    Console.ResetColor();
                     break;
             }
         }
@@ -112,14 +139,22 @@ namespace CatsAreOnlineServer {
             NetConnectionStatus status = (NetConnectionStatus)message.ReadByte();
             switch(status) {
                 case NetConnectionStatus.Connected:
-                case NetConnectionStatus.RespondedConnect:
+                    Console.ForegroundColor = ConsoleColor.DarkGreen;
                     Console.WriteLine(message.ReadString());
+                    Console.ResetColor();
+                    break;
+                case NetConnectionStatus.RespondedConnect:
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.WriteLine(message.ReadString());
+                    Console.ResetColor();
                     break;
                 case NetConnectionStatus.Disconnected:
                     ClientDisconnected(message);
                     break;
                 default:
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
                     Console.WriteLine($"[UNHANDLED] {message.MessageType} {status} {message.ReadString()}");
+                    Console.ResetColor();
                     break;
             }
         }
@@ -130,9 +165,9 @@ namespace CatsAreOnlineServer {
 
                 string username = player.username;
                 string reason = message.ReadString();
-                
+
                 LogPlayerAction(player, $"left ({reason})");
-                
+
                 NetOutgoingMessage notifyMessage = _server.CreateMessage();
                 notifyMessage.Write((byte)DataType.PlayerLeft);
                 notifyMessage.Write(username);
@@ -151,7 +186,11 @@ namespace CatsAreOnlineServer {
             
             if(type == DataType.RegisterPlayer) RegisterPlayerReceived(message);
             else if(_receivingDataMessages.TryGetValue(type, out Action<NetBuffer> action)) action(message);
-            else Console.WriteLine($"[WARN] Unknown message type received ({type.ToString()})");
+            else {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"[WARN] Unknown message type received ({type.ToString()})");
+                Console.ResetColor();
+            }
         }
 
         private static void RegisterPlayerReceived(NetIncomingMessage message) {
@@ -159,19 +198,25 @@ namespace CatsAreOnlineServer {
             if(registered) return;
             IPEndPoint ip = message.SenderEndPoint;
             string username = message.ReadString();
-            
+
+            Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"Registering player {username} @ {ip}");
+            Console.ResetColor();
 
             Guid guid = Guid.NewGuid();
             if(playerRegistry.ContainsKey(guid)) {
                 message.SenderConnection.Disconnect("GUID already taken, try reconnecting.");
+                Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"Could not register player {username} @ {ip} (GUID already taken)");
+                Console.ResetColor();
                 return;
             }
 
             if(playerRegistry.Any(ply => ply.Value.username == username)) {
                 message.SenderConnection.Disconnect("Username already taken.");
+                Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"Could not register player {username} @ {ip} (Username already taken)");
+                Console.ResetColor();
                 return;
             }
 
@@ -304,7 +349,7 @@ namespace CatsAreOnlineServer {
 
             string text = message.ReadString();
 
-            Console.WriteLine($"[{player.username} ({player.id.ToString()})] {text}");
+            Console.WriteLine($"[{player.username}] {text}");
 
             NetOutgoingMessage resendMessage = _server.CreateMessage();
             resendMessage.Write((byte)DataType.ChatMessage);
@@ -318,17 +363,15 @@ namespace CatsAreOnlineServer {
             if(!registered) return;
 
             string command = message.ReadString();
+            Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine($"Received a command from {player.username} : '{command}'");
+            Console.ResetColor();
             ExecuteCommand(player, command);
         }
 
         private static void ExecuteCommand(Player player, string command) {
-            try {
-                Commands.dispatcher.Execute(command, player);
-            }
-            catch(Exception ex) {
-                SendChatMessage(player, ServerErrorMessage(ex.Message));
-            }
+            try { Commands.dispatcher.Execute(command, player); }
+            catch(Exception ex) { SendChatMessage(player, ServerErrorMessage(ex.Message)); }
         }
 
         // ReSharper disable once SuggestBaseTypeForParameter
@@ -343,6 +386,8 @@ namespace CatsAreOnlineServer {
         }
 
         public static void SendChatMessage(Player player, string message) {
+            Console.WriteLine(message);
+            if(player is null) return;
             NetOutgoingMessage response = _server.CreateMessage();
             response.Write((byte)DataType.ChatMessage);
             response.Write(player.username);
@@ -365,7 +410,10 @@ namespace CatsAreOnlineServer {
         public static void LogPlayerAction(Player player, string action) =>
             LogPlayerAction(player.id.ToString(), player.username, action);
 
-        public static void LogPlayerAction(string id, string username, string action) =>
+        public static void LogPlayerAction(string id, string username, string action) {
+            Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine($"Player {username} ({id}) {action}");
+            Console.ResetColor();
+        }
     }
 }
