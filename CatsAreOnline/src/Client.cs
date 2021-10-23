@@ -114,7 +114,7 @@ namespace CatsAreOnline {
             _restoreFollowPlayerHead = FollowPlayer.followPlayerHead;
             _restoreFollowTarget = FollowPlayer.customFollowTarget;
             
-            NetPeerConfiguration config = new("mod.cgytrus.plugin.calOnline");
+            NetPeerConfiguration config = new("mod.cgytrus.plugins.calOnline");
             
             config.DisableMessageType(NetIncomingMessageType.Receipt);
             config.DisableMessageType(NetIncomingMessageType.ConnectionApproval);

@@ -45,7 +45,7 @@ namespace CatsAreOnlineServer {
             
             Commands.Initialize();
             
-            NetPeerConfiguration config = new("mod.cgytrus.plugin.calOnline") {
+            NetPeerConfiguration config = new("mod.cgytrus.plugins.calOnline") {
                 Port = port,
                 EnableUPnP = true
             };
