@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 
-using CaLAPI.API;
+using CalApi.API;
 
 using CatsAreOnline.Shared;
 using CatsAreOnline.Shared.StateTypes;

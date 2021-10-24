@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-using CaLAPI.API.Cat;
+using CalApi.API.Cat;
 
 using NBrigadier;
 using NBrigadier.Arguments;

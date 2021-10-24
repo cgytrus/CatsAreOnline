@@ -5,8 +5,8 @@ using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
 
-using CaLAPI.API;
-using CaLAPI.API.Cat;
+using CalApi.API;
+using CalApi.API.Cat;
 
 using Cat;
 

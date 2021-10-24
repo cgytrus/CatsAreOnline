@@ -44,8 +44,8 @@
           <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\BepInEx\core\BepInEx.dll</HintPath>
           <Private>False</Private>
         </Reference>
-        <Reference Include="CaLAPI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\..\CaLAPI\CaLAPI\bin\Release\CaLAPI.dll</HintPath>
+        <Reference Include="CalApi, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+          <HintPath>..\..\CalApi\CalApi\bin\Release\CalApi.dll</HintPath>
           <Private>False</Private>
         </Reference>
         <Reference Include="Lidgren.Network, Version=2012.1.7.0, Culture=neutral, PublicKeyToken=null">

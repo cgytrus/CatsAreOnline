@@ -1,4 +1,4 @@
-﻿using CaLAPI.Patches;
+﻿using CalApi.Patches;
 
 namespace CatsAreOnline.Patches {
     // ReSharper disable once UnusedType.Global
