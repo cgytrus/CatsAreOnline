@@ -33,72 +33,6 @@
         <WarningLevel>4</WarningLevel>
     </PropertyGroup>
     <ItemGroup>
-        <Reference Include="0Harmony, Version=2.5.5.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\BepInEx\core\0Harmony.dll</HintPath>
-        </Reference>
-        <Reference Include="Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\CaL-ABP-Windows_Data\Managed\Assembly-CSharp.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="BepInEx, Version=5.4.17.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\BepInEx\core\BepInEx.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="CalApi, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\..\CalApi\CalApi\bin\Release\CalApi.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="Lidgren.Network, Version=2012.1.7.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\packages\Lidgren.Network.1.0.2\lib\net451\Lidgren.Network.dll</HintPath>
-        </Reference>
-        <Reference Include="MMHOOK_Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\BepInEx\plugins\MMHOOK\MMHOOK_Assembly-CSharp.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="Mono.Cecil, Version=0.10.4.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e">
-          <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\BepInEx\core\Mono.Cecil.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="MonoMod.RuntimeDetour, Version=21.9.19.1, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\BepInEx\core\MonoMod.RuntimeDetour.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="MonoMod.Utils, Version=21.9.19.1, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\BepInEx\core\MonoMod.Utils.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="mscorlib" />
-        <Reference Include="NBrigadier, Version=1.0.17.4, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\packages\NBrigadier.1.0.17.4\lib\netstandard2.0\NBrigadier.dll</HintPath>
-        </Reference>
-        <Reference Include="System" />
-        <Reference Include="System.Core" />
-        <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\CaL-ABP-Windows_Data\Managed\UnityEngine.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\CaL-ABP-Windows_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="UnityEngine.Physics2DModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\CaL-ABP-Windows_Data\Managed\UnityEngine.Physics2DModule.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="UnityEngine.TextRenderingModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\CaL-ABP-Windows_Data\Managed\UnityEngine.TextRenderingModule.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="UnityEngine.UI, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\CaL-ABP-Windows_Data\Managed\UnityEngine.UI.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="UnityEngine.UIModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\..\SteamLibrary\steamapps\common\Cats are Liquid - A Better Place\CaL-ABP-Windows_Data\Managed\UnityEngine.UIModule.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-    </ItemGroup>
-    <ItemGroup>
         <Compile Include="Properties\AssemblyInfo.cs" />
         <Compile Include="src\CapturedData.cs" />
         <Compile Include="src\CatStateExtensions.cs" />
@@ -130,6 +64,97 @@
         <Project>{c49eaf4d-ee06-49c4-9137-f2a7a9ad8e0b}</Project>
         <Name>CatsAreOnline.Shared</Name>
       </ProjectReference>
+    </ItemGroup>
+    <ItemGroup>
+        <Content Include="libs\0Harmony.dll" />
+        <Content Include="libs\Assembly-CSharp.dll" />
+        <Content Include="libs\BepInEx.dll" />
+        <Content Include="libs\CalApi.dll" />
+        <Content Include="libs\MMHOOK_Assembly-CSharp.dll" />
+        <Content Include="libs\Mono.Cecil.dll" />
+        <Content Include="libs\MonoMod.Utils.dll" />
+        <Content Include="libs\mscorlib.dll" />
+        <Content Include="libs\NBrigadier.dll" />
+        <Content Include="libs\System.Core.dll" />
+        <Content Include="libs\System.dll" />
+        <Content Include="libs\UnityEngine.CoreModule.dll" />
+        <Content Include="libs\UnityEngine.dll" />
+        <Content Include="libs\UnityEngine.Physics2DModule.dll" />
+        <Content Include="libs\UnityEngine.TextRenderingModule.dll" />
+        <Content Include="libs\UnityEngine.UI.dll" />
+        <Content Include="libs\UnityEngine.UIModule.dll" />
+    </ItemGroup>
+    <ItemGroup>
+        <Reference Include="0Harmony, Version=2.5.5.0, Culture=neutral, PublicKeyToken=null">
+          <HintPath>libs\0Harmony.dll</HintPath>
+          <Private>False</Private>
+        </Reference>
+        <Reference Include="Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+          <HintPath>libs\Assembly-CSharp.dll</HintPath>
+          <Private>False</Private>
+        </Reference>
+        <Reference Include="BepInEx, Version=5.4.17.0, Culture=neutral, PublicKeyToken=null">
+          <HintPath>libs\BepInEx.dll</HintPath>
+          <Private>False</Private>
+        </Reference>
+        <Reference Include="CalApi, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+          <HintPath>libs\CalApi.dll</HintPath>
+          <Private>False</Private>
+        </Reference>
+        <Reference Include="Lidgren.Network, Version=2012.1.7.0, Culture=neutral, PublicKeyToken=null">
+            <HintPath>..\packages\Lidgren.Network.1.0.2\lib\net451\Lidgren.Network.dll</HintPath>
+        </Reference>
+        <Reference Include="MMHOOK_Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+          <HintPath>libs\MMHOOK_Assembly-CSharp.dll</HintPath>
+          <Private>False</Private>
+        </Reference>
+        <Reference Include="Mono.Cecil, Version=0.10.4.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e">
+          <HintPath>libs\Mono.Cecil.dll</HintPath>
+          <Private>False</Private>
+        </Reference>
+        <Reference Include="MonoMod.Utils, Version=21.9.19.1, Culture=neutral, PublicKeyToken=null">
+          <HintPath>libs\MonoMod.Utils.dll</HintPath>
+          <Private>False</Private>
+        </Reference>
+        <Reference Include="mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
+          <HintPath>libs\mscorlib.dll</HintPath>
+          <Private>False</Private>
+        </Reference>
+        <Reference Include="NBrigadier, Version=1.0.17.4, Culture=neutral, PublicKeyToken=null">
+          <HintPath>libs\NBrigadier.dll</HintPath>
+        </Reference>
+        <Reference Include="System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
+          <HintPath>libs\System.dll</HintPath>
+          <Private>False</Private>
+        </Reference>
+        <Reference Include="System.Core, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
+          <HintPath>libs\System.Core.dll</HintPath>
+          <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+          <HintPath>libs\UnityEngine.dll</HintPath>
+          <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+          <HintPath>libs\UnityEngine.CoreModule.dll</HintPath>
+          <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine.Physics2DModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+          <HintPath>libs\UnityEngine.Physics2DModule.dll</HintPath>
+          <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine.TextRenderingModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+          <HintPath>libs\UnityEngine.TextRenderingModule.dll</HintPath>
+          <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine.UI, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
+          <HintPath>libs\UnityEngine.UI.dll</HintPath>
+          <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine.UIModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+          <HintPath>libs\UnityEngine.UIModule.dll</HintPath>
+          <Private>False</Private>
+        </Reference>
     </ItemGroup>
     <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
     <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

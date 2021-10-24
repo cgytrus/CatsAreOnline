@@ -1,5 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{FA35B6EC-49BA-453F-85AB-24B246B41616}"
+    ProjectSection(SolutionItems) = preProject
+        .editorconfig = .editorconfig
+        .gitignore = .gitignore
+        LICENSE = LICENSE
+        README.md = README.md
+    EndProjectSection
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CatsAreOnline", "CatsAreOnline\CatsAreOnline.csproj", "{E33311E4-272A-4079-849C-B0AFDD16CAA3}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CatsAreOnlineServer", "CatsAreOnlineServer\CatsAreOnlineServer.csproj", "{52383F8E-442E-48F5-BA16-1881FCEE40BA}"
