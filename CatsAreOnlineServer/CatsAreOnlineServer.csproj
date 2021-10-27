@@ -7,7 +7,7 @@
 
     <ItemGroup>
       <PackageReference Include="Lidgren.Network" Version="1.0.2" />
-      <PackageReference Include="NBrigadier" Version="1.0.17.4" />
+      <PackageReference Include="NBrigadier" Version="1.0.17.5" />
     </ItemGroup>
 
     <ItemGroup>

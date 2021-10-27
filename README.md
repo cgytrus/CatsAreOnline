@@ -25,8 +25,6 @@ A multiplayer mod for [Cats are Liquid - A Better Place](https://store.steampowe
 2. Put the missing DLLs into CatsAreOnline/libs (for a more detailed explanation,
    follow the [Plugin development](https://bepinex.github.io/bepinex_docs/master/articles/dev_guide/plugin_tutorial/1_setup.html)
    guide on the BepInEx wiki starting from Gathering DLL dependencies)
-   *(the client is currently using a custom build of NBrigadier for .NET Framework,
-   which is available [here](https://github.com/cgytrus/NBrigadier/releases/latest))*
    
 ## TODO
 *Entries ending with a question mark is stuff i may or may not do later*
