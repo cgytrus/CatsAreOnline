@@ -190,6 +190,11 @@ namespace CatsAreOnline {
                 _client.ownPlayer.room = null;
                 _client.UpdateRoom();
             };
+            
+            On.CanvasManager.Awake += (orig, self) => {
+                orig(self);
+                _client.InitializeNameTags();
+            };
 
             // ReSharper disable once SuggestBaseTypeForParameter
             void ChangedColor(Cat.CatControls self, Color newColor) {
@@ -215,10 +220,7 @@ namespace CatsAreOnline {
                 ChangedColor(self, color);
             };
 
-            UI.initialized += (_, _) => {
-                Chat.Chat.Initialize(_client);
-                _client.InitializeNameTags();
-            };
+            UI.initialized += (_, _) => { Chat.Chat.Initialize(_client); };
         }
 
         private void SubscribeToCatControlsEvents(CatControls controls) {
