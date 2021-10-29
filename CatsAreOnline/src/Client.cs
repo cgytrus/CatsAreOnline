@@ -159,7 +159,8 @@ namespace CatsAreOnline {
         }
 
         public void InitializeNameTags() {
-            Object.Destroy(this.nameTags);
+            if(this.nameTags) Object.Destroy(this.nameTags.gameObject);
+
             _nameTagCamera = Camera.main;
             GameObject nameTags = new("Name Tags") { layer = LayerMask.NameToLayer("UI") };
             Object.DontDestroyOnLoad(nameTags);
