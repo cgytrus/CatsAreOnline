@@ -61,7 +61,7 @@ namespace CatsAreOnline {
         private void Awake() {
             CreateSettings();
             Logger.LogInfo("Creating client");
-            _client = new Client();
+            _client = new Client(Logger);
             CapturedData.catState = State.Normal;
             CapturedData.catScale = CapturedData.catState.GetScale();
             SetupSettings();
