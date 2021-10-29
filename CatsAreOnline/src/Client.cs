@@ -71,7 +71,7 @@ namespace CatsAreOnline {
 
         public readonly ClientDebug debug = new();
 
-        private readonly ManualLogSource logger;
+        private readonly ManualLogSource _logger;
         
         private readonly Dictionary<string, Player> _playerRegistry = new();
         private readonly Dictionary<Guid, SyncedObject> _syncedObjectRegistry = new();
@@ -101,7 +101,7 @@ namespace CatsAreOnline {
             CapturedData.catPartManager ? (Vector2)CapturedData.catPartManager.GetCatCenter() : Vector2.zero;
 
         public Client(ManualLogSource logger) {
-            this.logger = logger;
+            _logger = logger;
 
             _receivingDataMessages = new Dictionary<DataType, Action<NetBuffer>> {
                 { DataType.RegisterPlayer, RegisterPlayerReceived },
@@ -296,14 +296,14 @@ namespace CatsAreOnline {
                     StatusChangedMessageReceived(message);
                     break;
                 case NetIncomingMessageType.WarningMessage:
-                    logger.LogWarning($"{message.ReadString()}");
+                    _logger.LogWarning($"{message.ReadString()}");
                     break;
                 case NetIncomingMessageType.Error:
                 case NetIncomingMessageType.ErrorMessage:
-                    logger.LogError($"{message.ReadString()}");
+                    _logger.LogError($"{message.ReadString()}");
                     break;
                 default:
-                    logger.LogInfo($"[UNHANDLED] {message.MessageType}");
+                    _logger.LogInfo($"[UNHANDLED] {message.MessageType}");
                     break;
             }
         }
@@ -318,13 +318,13 @@ namespace CatsAreOnline {
                     Disconnected(message.ReadString());
                     break;
                 default:
-                    logger.LogInfo($"[UNHANDLED] {message.MessageType} {status} {message.ReadString()}");
+                    _logger.LogInfo($"[UNHANDLED] {message.MessageType} {status} {message.ReadString()}");
                     break;
             }
         }
         
         private void Connected() {
-            logger.LogInfo("Connected to the server");
+            _logger.LogInfo("Connected to the server");
             NetOutgoingMessage message = _client.CreateMessage();
             message.Write((byte)DataType.RegisterPlayer);
             message.Write(""); // send an empty guid because we don't have one yet
@@ -333,7 +333,7 @@ namespace CatsAreOnline {
         }
         
         private void Disconnected(string reason) {
-            logger.LogInfo("Disconnected from the server");
+            _logger.LogInfo("Disconnected from the server");
             MultiplayerPlugin.connected.Value = false;
             _guid = null;
             foreach(KeyValuePair<Guid, SyncedObject> syncedObject in _syncedObjectRegistry)
@@ -350,7 +350,7 @@ namespace CatsAreOnline {
             debug.PrintServer(type);
 
             if(_receivingDataMessages.TryGetValue(type, out Action<NetBuffer> action)) action(message);
-            else logger.LogWarning($"[WARN] Unknown message type received: {type.ToString()}");
+            else _logger.LogWarning($"[WARN] Unknown message type received: {type.ToString()}");
         }
 
         private void RegisterPlayerReceived(NetBuffer message) {
@@ -360,7 +360,7 @@ namespace CatsAreOnline {
             for(int i = 0; i < playerCount; i++) {
                 Player player = new(message.ReadString(), message.ReadString(), message.ReadString(),
                     Guid.Parse(message.ReadString()));
-                logger.LogInfo($"Registering player {player.username}");
+                _logger.LogInfo($"Registering player {player.username}");
                 _playerRegistry.Add(player.username, player);
             }
 
@@ -372,7 +372,7 @@ namespace CatsAreOnline {
                 if(!_playerRegistry.TryGetValue(username, out Player player)) { // this should never happen
                     // skip the next data, as it's useless since we can't create the object
                     // because its owner doesn't exist (how?????)
-                    logger.LogError("wtf, the owner didn't exist somehow");
+                    _logger.LogError("wtf, the owner didn't exist somehow");
                     SyncedObject.Create(this, type, id, ownPlayer, message).Remove();
                     continue;
                 }
@@ -392,7 +392,7 @@ namespace CatsAreOnline {
         private void PlayerJoinedReceived(NetBuffer message) {
             Player player = new(message.ReadString(), message.ReadString(), message.ReadString(),
                 Guid.Parse(message.ReadString()));
-            logger.LogInfo($"Registering player {player.username}");
+            _logger.LogInfo($"Registering player {player.username}");
             _playerRegistry.Add(player.username, player);
             Chat.Chat.AddMessage($"Player {player.displayName} joined");
         }
@@ -401,7 +401,7 @@ namespace CatsAreOnline {
             string username = message.ReadString();
             if(!_playerRegistry.TryGetValue(username, out Player player)) return;
             
-            logger.LogInfo($"Player {player.username} left");
+            _logger.LogInfo($"Player {player.username} left");
             Chat.Chat.AddMessage($"Player {player.displayName} left");
 
             if(spectating?.username == username) {
@@ -493,7 +493,7 @@ namespace CatsAreOnline {
             
             string text = message.ReadString();
 
-            logger.LogInfo($"[{player.username} ({username})] {text}");
+            _logger.LogInfo($"[{player.username} ({username})] {text}");
             Chat.Chat.AddMessage($"[{player.displayName}] {text}");
         }
 
