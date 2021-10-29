@@ -2,6 +2,9 @@
 
 using CalApi.API;
 
+using Rewired;
+using Rewired.Config;
+
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -26,6 +29,7 @@ namespace CatsAreOnline.Chat {
                 _inputField.interactable = value;
                 _fieldBackground.SetActive(value);
                 _inputField.ActivateInputField();
+                ReInput.players.GetPlayer(0).controllers.maps.SetAllMapsEnabled(!value);
             }
         }
 

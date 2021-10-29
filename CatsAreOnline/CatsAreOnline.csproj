@@ -42,7 +42,6 @@
         <Compile Include="src\ClientDebug.cs" />
         <Compile Include="src\Commands.cs" />
         <Compile Include="src\NetBufferExtensions.cs" />
-        <Compile Include="src\Patches\ChatControlBlock.cs" />
         <Compile Include="src\Patches\CurrentIceUpdates.cs" />
         <Compile Include="src\Patches\PipeColorUpdate.cs" />
         <Compile Include="src\MultiplayerPlugin.cs" />
@@ -74,6 +73,7 @@
         <Content Include="libs\Mono.Cecil.dll" />
         <Content Include="libs\MonoMod.Utils.dll" />
         <Content Include="libs\mscorlib.dll" />
+        <Content Include="libs\Rewired_Core.dll" />
         <Content Include="libs\System.Core.dll" />
         <Content Include="libs\System.dll" />
         <Content Include="libs\UnityEngine.CoreModule.dll" />
@@ -122,6 +122,10 @@
         <Reference Include="NBrigadier, Version=1.0.17.5, Culture=neutral, PublicKeyToken=null">
           <HintPath>..\packages\NBrigadier.1.0.17.5\lib\net461\NBrigadier.dll</HintPath>
           <Private>True</Private>
+        </Reference>
+        <Reference Include="Rewired_Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
+          <HintPath>libs\Rewired_Core.dll</HintPath>
+          <Private>False</Private>
         </Reference>
         <Reference Include="System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
           <HintPath>libs\System.dll</HintPath>
