@@ -17,6 +17,9 @@ namespace CatsAreOnlineServer {
 
         public static int playerCount => playerRegistry.Count;
 
+        private const int MaxUsernameLength = 64;
+        private const int MaxDisplayNameLength = 64;
+
         private static readonly Dictionary<Guid, Player> playerRegistry = new();
         private static readonly Dictionary<Guid, SyncedObject> syncedObjectRegistry = new();
 
@@ -198,25 +201,39 @@ namespace CatsAreOnlineServer {
             if(registered) return;
             IPEndPoint ip = message.SenderEndPoint;
             string username = message.ReadString();
+            string displayName = message.ReadString();
 
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"Registering player {username} @ {ip}");
             Console.ResetColor();
 
+            void RegisterPlayerError(string reason) {
+                message.SenderConnection.Disconnect($"{reason}.");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Could not register player {username} @ {ip} ({reason})");
+                Console.ResetColor();
+            }
+
             Guid guid = Guid.NewGuid();
             if(playerRegistry.ContainsKey(guid)) {
-                message.SenderConnection.Disconnect("GUID already taken, try reconnecting.");
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Could not register player {username} @ {ip} (GUID already taken)");
-                Console.ResetColor();
+                RegisterPlayerError("GUID already taken (what)");
                 return;
             }
 
             if(playerRegistry.Any(ply => ply.Value.username == username)) {
-                message.SenderConnection.Disconnect("Username already taken.");
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Could not register player {username} @ {ip} (Username already taken)");
-                Console.ResetColor();
+                RegisterPlayerError("Username already taken");
+                return;
+            }
+
+            if(username.Length > MaxUsernameLength) {
+                string maxLength = MaxUsernameLength.ToString(CultureInfo.InvariantCulture);
+                RegisterPlayerError($"Username too long (max length = {maxLength}");
+                return;
+            }
+
+            if(displayName.Length > MaxDisplayNameLength) {
+                string maxLength = MaxDisplayNameLength.ToString(CultureInfo.InvariantCulture);
+                RegisterPlayerError($"Display name too long (max length = {maxLength}");
                 return;
             }
 
@@ -224,7 +241,7 @@ namespace CatsAreOnlineServer {
                 connection = message.SenderConnection,
                 id = guid,
                 username = username,
-                displayName = message.ReadString(),
+                displayName = displayName,
                 room = message.ReadString(),
                 controlling = Guid.Parse(message.ReadString())
             };
