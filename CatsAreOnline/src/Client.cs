@@ -36,7 +36,7 @@ namespace CatsAreOnline {
         public RectTransform nameTags { get; private set; }
 
         public bool canConnect => CapturedData.catPartManager && CapturedData.catControls && CapturedData.catSprite &&
-                                  CapturedData.iceSprite && nameTags && _nameTagCamera;
+                                  CapturedData.iceSprite && nameTags;
 
         public Player ownPlayer { get; private set; } =
             new(null, null, null, Guid.Empty);
@@ -154,14 +154,18 @@ namespace CatsAreOnline {
         }
 
         public void UpdateAllNameTagsPositions() {
+            if(!_nameTagCamera) _nameTagCamera = Camera.main;
+
+            // should never happen but just in case
+            if(!_nameTagCamera) return;
+
             foreach(KeyValuePair<Guid, SyncedObject> syncedObject in _syncedObjectRegistry)
                 syncedObject.Value.UpdateNameTagPosition(_nameTagCamera);
         }
 
         public void InitializeNameTags() {
-            if(this.nameTags) Object.Destroy(this.nameTags.gameObject);
+            if(this.nameTags) return;
 
-            _nameTagCamera = Camera.main;
             GameObject nameTags = new("Name Tags") { layer = LayerMask.NameToLayer("UI") };
             Object.DontDestroyOnLoad(nameTags);
 
@@ -171,7 +175,6 @@ namespace CatsAreOnline {
 
             Canvas canvas = nameTags.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
-            canvas.worldCamera = _nameTagCamera;
             canvas.scaleFactor = 720f;
 
             this.nameTags = nameTagsTransform;
