@@ -24,6 +24,11 @@ namespace CatsAreOnline.Patches {
                 if(controller.GetValue(pipeObject) == null) return;
                 CapturedData.inJunction = false;
             };
+
+            On.Cat.CatPartManager.SpawnCatCoroutine += (orig, self, position) => {
+                CapturedData.inJunction = false;
+                return orig(self, position);
+            };
         }
     }
 }
