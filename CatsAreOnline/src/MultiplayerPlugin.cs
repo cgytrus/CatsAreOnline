@@ -32,7 +32,7 @@ namespace CatsAreOnline {
         }
     }
 
-    [BepInPlugin("mod.cgytrus.plugins.calOnline", "Cats are Online", "0.4.1")]
+    [BepInPlugin("mod.cgytrus.plugins.calOnline", "Cats are Online", "0.5.0")]
     [BepInDependency("mod.cgytrus.plugins.calapi", "0.2.1")]
     internal class MultiplayerPlugin : BaseUnityPlugin {
         public static ConfigEntry<bool> connected;

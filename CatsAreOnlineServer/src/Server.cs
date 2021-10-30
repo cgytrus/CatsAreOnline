@@ -12,7 +12,7 @@ using Lidgren.Network;
 
 namespace CatsAreOnlineServer {
     public static class Server {
-        public const string Version = "0.4.1";
+        public const string Version = "0.5.0";
         public static TimeSpan targetTickTime { get; } = TimeSpan.FromSeconds(0.01d);
 
         public static int playerCount => playerRegistry.Count;
