@@ -306,8 +306,7 @@ namespace CatsAreOnline {
             companionId = Guid.NewGuid();
             companionState = new CompanionSyncedObjectState { client = this };
             companionState.Update();
-            AddSyncedObject(companionId, SyncedObjectType.Companion, companionState,
-                true);
+            AddSyncedObject(companionId, SyncedObjectType.Companion, companionState, true);
         }
         
         public void RemoveCompanion() {
@@ -426,8 +425,7 @@ namespace CatsAreOnline {
 
             bool inCompanion = companionId != Guid.Empty && companionState != null;
 
-            catId = Guid.NewGuid();
-            AddSyncedObject(catId, SyncedObjectType.Cat, catState, !inCompanion);
+            AddCat();
             
             if(inCompanion) AddSyncedObject(companionId, SyncedObjectType.Companion, companionState, true);
         }
