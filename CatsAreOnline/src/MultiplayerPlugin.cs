@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Globalization;
+using System.IO;
 using System.Reflection;
 
 using BepInEx;
@@ -322,6 +323,88 @@ namespace CatsAreOnline {
         private static ParsedIp ParseIp(string ip) {
             string[] ipPort = ip.Split(':');
             return new ParsedIp(ipPort[0], int.Parse(ipPort[1], CultureInfo.InvariantCulture));
+        }
+
+        public static string FindLocationPath(string worldPackGuid, string worldGuid, string roomGuid,
+            out bool isOfficial) {
+            isOfficial = worldPackGuid == "8651f68f-f757-4108-a6f9-28afd861a110";
+            return isOfficial ? FindOfficialLocationPath(worldGuid, roomGuid) :
+                FindCommunityLocationPath(worldPackGuid, worldGuid, roomGuid);
+        }
+
+        private static string FindOfficialLocationPath(string worldGuid, string roomGuid) {
+            string packPath = Path.Combine(Application.temporaryCachePath, "Official Maps");
+            string worldPath = FindWorldPathInPack(packPath, worldGuid);
+            string[] roomPath = FindRoomPathInWorld(worldPath, roomGuid).Split(Path.DirectorySeparatorChar);
+            int startIndex = Array.IndexOf(roomPath, "Official Maps");
+            string[] officialRoomPath = new string[roomPath.Length - startIndex];
+            Array.Copy(roomPath, startIndex, officialRoomPath, 0, officialRoomPath.Length);
+            return Path.Combine(officialRoomPath);
+        }
+
+        private static string FindCommunityLocationPath(string packGuid, string worldGuid, string roomGuid) {
+            string packPath = FindCommunityPack(packGuid);
+            string worldPath = FindWorldPathInPack(packPath, worldGuid);
+            string roomPath = FindRoomPathInWorld(worldPath, roomGuid);
+            return roomPath;
+        }
+
+        private static string FindCommunityPack(string packGuid) {
+            string[] packsPaths = {
+                Path.Combine(Application.persistentDataPath, "Packs", "Imported", packGuid),
+                Path.Combine(Application.persistentDataPath, "Custom")
+            };
+            foreach(string packsPath in packsPaths) {
+                string findCommunityPack = FindCommunityPack(packsPath, packGuid);
+                if(findCommunityPack != null) return findCommunityPack;
+            }
+
+            throw new InvalidDataException($"Pack {packGuid} was not found.");
+        }
+
+        private static string FindCommunityPack(string packsPath, string packGuid) {
+            if(!Directory.Exists(packsPath)) throw new InvalidDataException($"{packsPath} doesn't exist.");
+            // ReSharper disable once LoopCanBeConvertedToQuery
+            foreach(string directory in Directory.GetDirectories(packsPath)) {
+                string settingsPath = Path.Combine(directory, "settings.data");
+                if(!File.Exists(settingsPath)) continue;
+                string currentGuid = JsonUtility.FromJson<WorldPackSettings.Settings>(File.ReadAllText(settingsPath))
+                    .worldPackGUID;
+                if(currentGuid != packGuid) continue;
+                return directory;
+            }
+
+            return null;
+        }
+
+        private static string FindWorldPathInPack(string packPath, string worldGuid) {
+            if(!Directory.Exists(packPath))
+                throw new InvalidDataException($"{packPath} doesn't exist.");
+            foreach(string directory in Directory.GetDirectories(packPath)) {
+                string settingsPath = Path.Combine(directory, "settings.data");
+                if(!File.Exists(settingsPath)) continue;
+                string currentGuid = JsonUtility.FromJson<WorldSettings.Settings>(File.ReadAllText(settingsPath))
+                    .worldGUID;
+                if(currentGuid != worldGuid) continue;
+                return directory;
+            }
+
+            throw new InvalidDataException($"World {worldGuid} was not found in {packPath}.");
+        }
+
+        private static string FindRoomPathInWorld(string worldPath, string roomGuid) {
+            if(!Directory.Exists(worldPath))
+                throw new InvalidDataException($"{worldPath} doesn't exist.");
+            foreach(string directory in Directory.GetDirectories(worldPath)) {
+                string settingsPath = Path.Combine(directory, "settings.data");
+                if(!File.Exists(settingsPath)) continue;
+                string currentGuid = JsonUtility
+                    .FromJson<RSSystem.RoomSettings.Settings>(File.ReadAllText(settingsPath)).roomGUID;
+                if(currentGuid != roomGuid) continue;
+                return directory;
+            }
+
+            throw new InvalidDataException($"Room {roomGuid} was not found in {worldPath}.");
         }
     }
 }

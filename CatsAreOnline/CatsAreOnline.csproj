@@ -78,6 +78,7 @@
         <Content Include="libs\System.dll" />
         <Content Include="libs\UnityEngine.CoreModule.dll" />
         <Content Include="libs\UnityEngine.dll" />
+        <Content Include="libs\UnityEngine.JSONSerializeModule.dll" />
         <Content Include="libs\UnityEngine.Physics2DModule.dll" />
         <Content Include="libs\UnityEngine.TextRenderingModule.dll" />
         <Content Include="libs\UnityEngine.UI.dll" />
@@ -141,6 +142,10 @@
         </Reference>
         <Reference Include="UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
           <HintPath>libs\UnityEngine.CoreModule.dll</HintPath>
+          <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine.JSONSerializeModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+          <HintPath>libs\UnityEngine.JSONSerializeModule.dll</HintPath>
           <Private>False</Private>
         </Reference>
         <Reference Include="UnityEngine.Physics2DModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">

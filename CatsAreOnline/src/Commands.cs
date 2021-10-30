@@ -12,6 +12,8 @@ using NBrigadier.Tree;
 
 using UnityEngine;
 
+using Object = UnityEngine.Object;
+
 namespace CatsAreOnline {
     public static class Commands {
         public static CommandDispatcher<Client> dispatcher { get; } = new();
@@ -83,7 +85,7 @@ namespace CatsAreOnline {
                                     FloatArgumentType.GetFloat(context, "y")));
                             return 1;
                         })))
-            ), "Teleports you to the specified location.");
+            ), "Teleports you to the specified position.");
 
             descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Client>.Literal("spectate")
                 .Then(RequiredArgumentBuilder<Client, string>.Argument("username", StringArgumentType.String())
@@ -95,6 +97,23 @@ namespace CatsAreOnline {
                     SpectateCommand(context);
                     return 1;
                 })), "Spectate a player in the same room as you.");
+            
+            descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Client>.Literal("enter")
+                .Then(RequiredArgumentBuilder<Client, string>
+                    .Argument("username", StringArgumentType.String())
+                    .Executes(context => {
+                        EnterCommand(context, StringArgumentType.GetString(context, "username"));
+                        return 1;
+                    }))
+                .Then(RequiredArgumentBuilder<Client, string>.Argument("worldPackGuid", StringArgumentType.String())
+                    .Then(RequiredArgumentBuilder<Client, string>.Argument("worldGuid", StringArgumentType.String())
+                        .Then(RequiredArgumentBuilder<Client, string>.Argument("roomGuid", StringArgumentType.String())
+                            .Executes(context => {
+                                EnterCommand(context, StringArgumentType.GetString(context, "worldPackGuid"),
+                                    StringArgumentType.GetString(context, "worldGuid"),
+                                    StringArgumentType.GetString(context, "roomGuid"));
+                                return 1;
+                            }))))), "Enter the specified room.");
         }
 
         private static int RedirectToServer(CommandContext<Client> context) {
@@ -263,12 +282,56 @@ namespace CatsAreOnline {
 
             if(!player.LocationEqual(context.Source.ownPlayer)) {
                 Chat.Chat.AddErrorMessage(
-                    $"Invalid argument <b>0</b> (player <b>{username}</b> is in a different room)");
+                    $"Invalid argument <b>0</b> (player <b>{username}</b> is in a different location)");
                 return;
             }
 
             context.Source.spectating = player;
             Chat.Chat.AddMessage($"Spectating <b>{player.displayName}</b>");
+        }
+
+        private static void EnterCommand(CommandContext<Client> context, string username) {
+            Player player = (from ply in context.Source.playerRegistry where ply.Value.username == username
+                             select ply.Value)
+                .FirstOrDefault();
+            if(player == null) {
+                Chat.Chat.AddErrorMessage($"Invalid argument <b>0</b> (player <b>{username}</b> not found)");
+                return;
+            }
+
+            if(player.username == context.Source.ownPlayer.username) {
+                Chat.Chat.AddErrorMessage("Invalid argument <b>0</b> (can't join yourself)");
+                return;
+            }
+
+            if(player.LocationEqual(context.Source.ownPlayer)) {
+                Chat.Chat.AddErrorMessage(
+                    $"Invalid argument <b>0</b> (player <b>{username}</b> is in the same location)");
+                return;
+            }
+            
+            EnterCommand(context, player.worldPackGuid, player.worldGuid, player.roomGuid);
+        }
+
+        private static void EnterCommand(CommandContext<Client> context, string worldPackGuid, string worldGuid,
+            string roomGuid) {
+            if(!context.Source.ownPlayer.IsPlaying()) {
+                Chat.Chat.AddErrorMessage("You're not currently in some other location");
+                return;
+            }
+
+            try {
+                string path =
+                    MultiplayerPlugin.FindLocationPath(worldPackGuid, worldGuid, roomGuid, out bool isOfficial);
+                if(isOfficial) {
+                    LevelLoadManager.LoadLevel(path);
+                    WorldPackSettings.LoadOfficialPackSettings();
+                }
+                else LevelLoadManager.LoadCommunityLevel(path);
+            }
+            catch(Exception ex) {
+                Chat.Chat.AddErrorMessage(ex.Message);
+            }
         }
     }
 }
