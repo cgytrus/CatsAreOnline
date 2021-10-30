@@ -133,59 +133,74 @@ namespace CatsAreOnline {
             CommandNode<Client> node = dispatcher.FindNode(new string[] { command });
             IDictionary<CommandNode<Client>, string> usages = dispatcher.GetSmartUsage(node, source);
             
-            foreach(KeyValuePair<CommandNode<Client>, string> usage in usages)
+            foreach((CommandNode<Client> _, string usage) in usages)
                 Chat.Chat.AddMessage(descriptions.TryGetValue(node, out string description) ?
-                    $"{command} - {description} Usage: {usage.Value}" : $"{command} {usage.Value}");
+                    $"{command} - {description} Usage: {usage}" : $"{command} {usage}");
         }
 
         private static void DebugCommand(string arg, Client source) {
             ClientDebug.DataTypeFlag ToggleFlags(ClientDebug.DataTypeFlag current) =>
                 current == ClientDebug.DataTypeFlag.All ? ClientDebug.DataTypeFlag.None : ClientDebug.DataTypeFlag.All;
 
-            string[] splitArg = arg.Split('_');
-            if(splitArg.Length < 1 || splitArg.Length > 3) {
-                Chat.Chat.AddWarningMessage($"Invalid argument syntax ('{arg}')");
-                return;
-            }
+            if(!DebugCommandArgValid(arg, out string[] splitArg, out string argType)) return;
 
-            string argType = splitArg[0].ToLowerInvariant();
-            if(argType != "client" && argType != "server") {
-                Chat.Chat.AddWarningMessage($"Invalid argument syntax ('{arg}')");
-                return;
-            }
-
-            string argAction = splitArg.Length >= 3 ? splitArg[2].ToLowerInvariant() : null;
-            if(argAction != null && argAction != "state") {
-                Chat.Chat.AddWarningMessage($"Invalid argument syntax ('{arg}')");
-                return;
-            }
-            
             switch(splitArg.Length) {
-                case 3:
-                case 2:
+                case 3 or 2: {
                     string dataType = splitArg[1];
                     if(!Enum.TryParse(dataType, true, out ClientDebug.DataTypeFlag flag)) {
                         Chat.Chat.AddWarningMessage($"Unknown data type '{arg}'");
                         return;
                     }
 
-                    switch(splitArg.Length) {
-                        case 3:
-                            Chat.Chat.AddDebugMessage(
-                                argType == "client" ? $"[CLIENT] {source.debug.client.HasFlag(flag).ToString()}" :
-                                    $"[SERVER] {source.debug.server.HasFlag(flag).ToString()}");
-                            break;
-                        case 2:
-                            if(argType == "client") source.debug.client ^= flag;
-                            else source.debug.server ^= flag;
-                            break;
-                    }
+                    DebugCommandParse3Or2Args(flag, splitArg, argType, source);
+
                     break;
+                }
                 case 1 when argType == "client": source.debug.client = ToggleFlags(source.debug.client);
                     break;
                 case 1: source.debug.server = ToggleFlags(source.debug.server);
                     break;
             }
+        }
+        private static void DebugCommandParse3Or2Args(ClientDebug.DataTypeFlag dataTypeFlag,
+            IReadOnlyCollection<string> splitArg, string argType, Client source) {
+            switch(splitArg.Count) {
+                case 3:
+                    Chat.Chat.AddDebugMessage(argType == "client" ?
+                        $"[CLIENT] {source.debug.client.HasFlag(dataTypeFlag).ToString()}" :
+                        $"[SERVER] {source.debug.server.HasFlag(dataTypeFlag).ToString()}");
+                    break;
+                case 2 when argType == "client":
+                    source.debug.client ^= dataTypeFlag;
+                    break;
+                case 2:
+                    source.debug.server ^= dataTypeFlag;
+                    break;
+            }
+        }
+
+        private static bool DebugCommandArgValid(string arg, out string[] splitArg, out string argType) {
+            splitArg = arg.Split('_');
+            if(splitArg.Length is < 1 or > 3) {
+                Chat.Chat.AddWarningMessage($"Invalid argument syntax ('{arg}')");
+                argType = null;
+                return false;
+            }
+
+            argType = splitArg[0].ToLowerInvariant();
+            if(argType != "client" && argType != "server") {
+                Chat.Chat.AddWarningMessage($"Invalid argument syntax ('{arg}')");
+                return false;
+            }
+
+            string argAction = splitArg.Length >= 3 ? splitArg[2].ToLowerInvariant() : null;
+            // ReSharper disable once InvertIf
+            if(argAction != null && argAction != "state") {
+                Chat.Chat.AddWarningMessage($"Invalid argument syntax ('{arg}')");
+                return false;
+            }
+
+            return true;
         }
 
         private static void PlayersCommand(int page, bool printUsername, Client source) =>
