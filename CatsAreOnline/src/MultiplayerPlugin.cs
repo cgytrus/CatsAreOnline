@@ -161,7 +161,10 @@ namespace CatsAreOnline {
                 orig(self);
                 if(!self.GetComponent<PlayerActor>()) return;
 
-                CapturedData.catColor = self.GetCurrentConfigurationColor();
+                FieldInfo normalStateConfiguration = AccessTools.Field(typeof(CatControls), "normalStateConfiguration");
+                FieldInfo stateConfigurationColor = AccessTools.Field(normalStateConfiguration.FieldType, "color");
+                CapturedData.catColor =
+                    (Color)stateConfigurationColor.GetValue(normalStateConfiguration.GetValue(self));
 
                 GameObject catIcePrefab =
                     (GameObject)AccessTools.Field(typeof(Cat.CatControls), "catIcePrefab").GetValue(self);
