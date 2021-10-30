@@ -229,13 +229,13 @@ namespace CatsAreOnlineServer {
 
             if(username.Length > MaxUsernameLength) {
                 string maxLength = MaxUsernameLength.ToString(CultureInfo.InvariantCulture);
-                RegisterPlayerError($"Username too long (max length = {maxLength}");
+                RegisterPlayerError($"Username too long (max length = {maxLength})");
                 return;
             }
 
             if(displayName.Length > MaxDisplayNameLength) {
                 string maxLength = MaxDisplayNameLength.ToString(CultureInfo.InvariantCulture);
-                RegisterPlayerError($"Display name too long (max length = {maxLength}");
+                RegisterPlayerError($"Display name too long (max length = {maxLength})");
                 return;
             }
 
