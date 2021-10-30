@@ -192,7 +192,7 @@ namespace CatsAreOnline {
             PrintCollection(source.players, page, player => {
             string displayName = $"{player.displayName} ";
             string username = printUsername ? $"({player.username}) " : "";
-            string room = string.IsNullOrWhiteSpace(player.room) ? "" : $": {player.room}";
+            string room = player.IsPlaying() ? $": {player.worldPackName} - {player.worldName} - {player.roomName}" : "";
                 
             return $"{displayName}{username}{room}";
         });
@@ -206,7 +206,7 @@ namespace CatsAreOnline {
                 return;
             }
 
-            if(!player.RoomEqual(context.Source.ownPlayer)) {
+            if(!player.LocationEqual(context.Source.ownPlayer)) {
                 Chat.Chat.AddErrorMessage(
                     $"Invalid argument <b>0</b> (player <b>{username}</b> is in a different room)");
                 return;
@@ -246,7 +246,7 @@ namespace CatsAreOnline {
                 return;
             }
 
-            if(!player.RoomEqual(context.Source.ownPlayer)) {
+            if(!player.LocationEqual(context.Source.ownPlayer)) {
                 Chat.Chat.AddErrorMessage(
                     $"Invalid argument <b>0</b> (player <b>{username}</b> is in a different room)");
                 return;

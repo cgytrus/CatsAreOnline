@@ -3,6 +3,8 @@
         RegisterPlayer,
         PlayerJoined,
         PlayerLeft,
+        PlayerChangedWorldPack,
+        PlayerChangedWorld,
         PlayerChangedRoom,
         PlayerChangedControllingObject,
         SyncedObjectAdded,

@@ -21,7 +21,7 @@ namespace CatsAreOnline {
                 _displayOwnCat = value;
                 // ReSharper disable once ForeachCanBePartlyConvertedToQueryUsingAnotherGetEnumerator
                 foreach(KeyValuePair<Guid, SyncedObject> syncedObject in _syncedObjectRegistry)
-                    syncedObject.Value.UpdateRoom();
+                    syncedObject.Value.UpdateLocation();
             }
         }
 
@@ -31,7 +31,7 @@ namespace CatsAreOnline {
                 _playerCollisions = value;
                 // ReSharper disable once ForeachCanBePartlyConvertedToQueryUsingAnotherGetEnumerator
                 foreach(KeyValuePair<Guid, SyncedObject> syncedObject in _syncedObjectRegistry)
-                    syncedObject.Value.UpdateRoom();
+                    syncedObject.Value.UpdateLocation();
             }
         }
 
@@ -40,8 +40,7 @@ namespace CatsAreOnline {
         public bool canConnect => CapturedData.catPartManager && CapturedData.catControls && CapturedData.catSprite &&
                                   CapturedData.iceSprite && nameTags;
 
-        public Player ownPlayer { get; private set; } =
-            new(null, null, null, Guid.Empty);
+        public Player ownPlayer { get; private set; } = new(null, null) { controlling = Guid.Empty };
         public CatSyncedObjectState catState { get; } = new();
         public CompanionSyncedObjectState companionState { get; private set; }
         public Guid catId { get; private set; }
@@ -98,7 +97,7 @@ namespace CatsAreOnline {
         public Vector2 currentCatPosition => CapturedData.inJunction ? CapturedData.junctionPosition :
             (FollowPlayer.customFollowTarget || Boiler.PlayerBoilerCounter > 0) && spectating == null ?
             (Vector2)FollowPlayer.LookAt.position :
-            CapturedData.catPartManager ? (Vector2)CapturedData.catPartManager.GetCatCenter() : Vector2.zero;
+            CapturedData.catPartManager ? CapturedData.catPartManager.GetCatCenter() : Vector2.zero;
 
         public Client(ManualLogSource logger) {
             _logger = logger;
@@ -107,6 +106,8 @@ namespace CatsAreOnline {
                 { DataType.RegisterPlayer, RegisterPlayerReceived },
                 { DataType.PlayerJoined, PlayerJoinedReceived },
                 { DataType.PlayerLeft, PlayerLeftReceived },
+                { DataType.PlayerChangedWorldPack, PlayerChangedWorldPackReceived },
+                { DataType.PlayerChangedWorld, PlayerChangedWorldReceived },
                 { DataType.PlayerChangedRoom, PlayerChangedRoomReceived },
                 { DataType.PlayerChangedControllingObject, PlayerChangedControllingObjectReceived },
                 { DataType.SyncedObjectAdded, SyncedObjectAddedReceived },
@@ -141,7 +142,15 @@ namespace CatsAreOnline {
 
             username = string.IsNullOrWhiteSpace(username) ? "<Unknown>" : username;
             displayName = string.IsNullOrWhiteSpace(displayName) ? username : displayName;
-            ownPlayer = new Player(username, displayName, ownPlayer.room, ownPlayer.controlling);
+            ownPlayer = new Player(username, displayName) {
+                worldPackGuid = ownPlayer.worldPackGuid,
+                worldPackName = ownPlayer.worldPackName,
+                worldGuid = ownPlayer.worldGuid,
+                worldName = ownPlayer.worldName,
+                roomGuid = ownPlayer.roomGuid,
+                roomName = ownPlayer.roomName,
+                controlling = ownPlayer.controlling
+            };
 
             _client.Connect(ip, port);
         }
@@ -231,18 +240,40 @@ namespace CatsAreOnline {
             SendMessageToServer(message, state.deliveryMethod);
         }
 
+        public void UpdateWorldPack() {
+            if(_client.ConnectionStatus != NetConnectionStatus.Connected) return;
+
+            NetOutgoingMessage message = PrepareMessage(DataType.PlayerChangedWorldPack);
+            message.Write(ownPlayer.worldPackGuid);
+            message.Write(ownPlayer.worldPackName);
+            SendMessageToServer(message, DeliveryMethods.Reliable);
+            
+            foreach(KeyValuePair<Guid, SyncedObject> syncedObject in _syncedObjectRegistry)
+                syncedObject.Value.UpdateLocation();
+        }
+
+        public void UpdateWorld() {
+            if(_client.ConnectionStatus != NetConnectionStatus.Connected) return;
+
+            NetOutgoingMessage message = PrepareMessage(DataType.PlayerChangedWorld);
+            message.Write(ownPlayer.worldGuid);
+            message.Write(ownPlayer.worldName);
+            SendMessageToServer(message, DeliveryMethods.Reliable);
+            
+            foreach(KeyValuePair<Guid, SyncedObject> syncedObject in _syncedObjectRegistry)
+                syncedObject.Value.UpdateLocation();
+        }
+
         public void UpdateRoom() {
             if(_client.ConnectionStatus != NetConnectionStatus.Connected) return;
 
             NetOutgoingMessage message = PrepareMessage(DataType.PlayerChangedRoom);
-            message.Write(ownPlayer.room);
+            message.Write(ownPlayer.roomGuid);
+            message.Write(ownPlayer.roomName);
             SendMessageToServer(message, DeliveryMethods.Reliable);
             
             foreach(KeyValuePair<Guid, SyncedObject> syncedObject in _syncedObjectRegistry)
-                syncedObject.Value.UpdateRoom();
-
-            catId = Guid.NewGuid();
-            AddSyncedObject(catId, SyncedObjectType.Cat, catState, true);
+                syncedObject.Value.UpdateLocation();
         }
 
         public void AddSyncedObject(Guid id, SyncedObjectType type, SyncedObjectState state, bool switchControlling) {
@@ -264,6 +295,11 @@ namespace CatsAreOnline {
             NetOutgoingMessage message = PrepareMessage(DataType.SyncedObjectRemoved);
             message.Write(id.ToString());
             SendMessageToServer(message, DeliveryMethods.Reliable);
+        }
+
+        public void AddCat() {
+            catId = Guid.NewGuid();
+            AddSyncedObject(catId, SyncedObjectType.Cat, catState, true);
         }
         
         public void AddCompanion() {
@@ -358,8 +394,15 @@ namespace CatsAreOnline {
             
             int playerCount = message.ReadInt32();
             for(int i = 0; i < playerCount; i++) {
-                Player player = new(message.ReadString(), message.ReadString(), message.ReadString(),
-                    Guid.Parse(message.ReadString()));
+                Player player = new(message.ReadString(), message.ReadString()) {
+                    worldPackGuid = message.ReadString(),
+                    worldPackName = message.ReadString(),
+                    worldGuid = message.ReadString(),
+                    worldName = message.ReadString(),
+                    roomGuid = message.ReadString(),
+                    roomName = message.ReadString(),
+                    controlling = Guid.Parse(message.ReadString())
+                };
                 _logger.LogInfo($"Registering player {player.username}");
                 _playerRegistry.Add(player.username, player);
             }
@@ -390,8 +433,15 @@ namespace CatsAreOnline {
         }
 
         private void PlayerJoinedReceived(NetBuffer message) {
-            Player player = new(message.ReadString(), message.ReadString(), message.ReadString(),
-                Guid.Parse(message.ReadString()));
+            Player player = new(message.ReadString(), message.ReadString()) {
+                worldPackGuid = message.ReadString(),
+                worldPackName = message.ReadString(),
+                worldGuid = message.ReadString(),
+                worldName = message.ReadString(),
+                roomGuid = message.ReadString(),
+                roomName = message.ReadString(),
+                controlling = Guid.Parse(message.ReadString())
+            };
             _logger.LogInfo($"Registering player {player.username}");
             _playerRegistry.Add(player.username, player);
             Chat.Chat.AddMessage($"Player {player.displayName} joined");
@@ -419,20 +469,52 @@ namespace CatsAreOnline {
             _playerRegistry.Remove(username);
         }
 
+        private void PlayerChangedWorldPackReceived(NetBuffer message) {
+            string username = message.ReadString();
+            if(!_playerRegistry.TryGetValue(username, out Player player)) return;
+
+            string worldPackGuid = message.ReadString();
+            string worldPackName = message.ReadString();
+
+            if(player.LocationEqual(worldPackGuid, player.worldGuid, player.roomGuid)) return;
+
+            LocationChanged(username);
+            player.worldPackGuid = worldPackGuid;
+            player.worldPackName = worldPackName;
+        }
+
+        private void PlayerChangedWorldReceived(NetBuffer message) {
+            string username = message.ReadString();
+            if(!_playerRegistry.TryGetValue(username, out Player player)) return;
+
+            string worldGuid = message.ReadString();
+            string worldName = message.ReadString();
+
+            if(player.LocationEqual(player.worldPackGuid, worldGuid, player.roomGuid)) return;
+
+            LocationChanged(username);
+            player.worldGuid = worldGuid;
+            player.worldName = worldName;
+        }
+
         private void PlayerChangedRoomReceived(NetBuffer message) {
             string username = message.ReadString();
             if(!_playerRegistry.TryGetValue(username, out Player player)) return;
 
-            string room = message.ReadString();
+            string roomGuid = message.ReadString();
+            string roomName = message.ReadString();
 
-            if(player.RoomEqual(room)) {
-                player.room = room;
-                return;
-            }
+            if(player.LocationEqual(player.worldPackGuid, player.worldGuid, roomGuid)) return;
 
+            LocationChanged(username);
+            player.roomGuid = roomGuid;
+            player.roomName = roomName;
+        }
+
+        private void LocationChanged(string username) {
             if(spectating?.username == username) {
                 spectating = null;
-                Chat.Chat.AddMessage($"Stopped spectating <b>{username}</b> (player changed room)");
+                Chat.Chat.AddMessage($"Stopped spectating <b>{username}</b> (player changed location)");
             }
 
             List<Guid> toRemove = (from syncedObject in _syncedObjectRegistry
@@ -442,8 +524,6 @@ namespace CatsAreOnline {
                 _syncedObjectRegistry[id].Remove();
                 _syncedObjectRegistry.Remove(id);
             }
-
-            player.room = room;
         }
 
         private void PlayerChangedControllingObjectReceived(NetBuffer message) {

@@ -22,8 +22,8 @@ namespace CatsAreOnline.SyncedObjects {
             if(!ice) transform.eulerAngles = Vector3.zero;
         }
 
-        public override void UpdateRoom() {
-            base.UpdateRoom();
+        public override void UpdateLocation() {
+            base.UpdateLocation();
             UpdateColliders();
         }
 

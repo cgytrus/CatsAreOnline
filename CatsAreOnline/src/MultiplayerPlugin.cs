@@ -19,7 +19,6 @@ using Mono.Cecil.Cil;
 using MonoMod.Cil;
 
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace CatsAreOnline {
     internal readonly struct ParsedIp {
@@ -62,7 +61,7 @@ namespace CatsAreOnline {
             CreateSettings();
             Logger.LogInfo("Creating client");
             _client = new Client(Logger);
-            CapturedData.catState = State.Normal;
+            CapturedData.catState = Cat.State.Normal;
             CapturedData.catScale = CapturedData.catState.GetScale();
             SetupSettings();
 
@@ -176,20 +175,7 @@ namespace CatsAreOnline {
                 SubscribeToCatControlsEvents(self);
             };
 
-            // TODO: change to use room guid for actual room check
-            FieldInfo roomInfo = AccessTools.Field(typeof(PauseScreen), "roomInfo");
-            On.PauseScreen.UpdateRoomInfo += (orig, self, path) => {
-                orig(self, path);
-                string newRoom = ((Text)roomInfo!.GetValue(self)).text;
-                if(newRoom == _client.ownPlayer.room) return;
-                _client.ownPlayer.room = newRoom;
-                _client.UpdateRoom();
-            };
-
-            PauseScreen.pauseScreenExitAction += () => {
-                _client.ownPlayer.room = null;
-                _client.UpdateRoom();
-            };
+            SubscribeToLocationUpdates();
 
             // ReSharper disable once SuggestBaseTypeForParameter
             void ChangedColor(Cat.CatControls self, Color newColor) {
@@ -221,9 +207,50 @@ namespace CatsAreOnline {
             };
         }
 
+        private void SubscribeToLocationUpdates() {
+            void UpdateWorldPack() {
+                if(!_client.ownPlayer.UpdateWorldPack()) return;
+                _client.UpdateWorldPack();
+                _client.AddCat();
+            }
+            void UpdateWorld() {
+                UpdateWorldPack();
+                if(!_client.ownPlayer.UpdateWorld()) return;
+                _client.UpdateWorld();
+                _client.AddCat();
+            }
+            void UpdateRoom() {
+                if(!_client.ownPlayer.UpdateRoom()) return;
+                _client.UpdateRoom();
+                _client.AddCat();
+            }
+            void UpdateLocation() {
+                UpdateWorld();
+                UpdateRoom();
+            }
+            WorldPackSettings.WorldPackSettingsLoadedAction += UpdateWorldPack;
+            // lqd why you haaardcooode aaaaaaaa
+            On.WorldPackSettings.LoadOfficialPackSettings += orig => {
+                orig();
+                UpdateWorldPack();
+            };
+            WorldSettings.WorldSettingsLoadedAction += UpdateWorld;
+            RSSystem.RoomSettings.RoomSettingsLoadedAction += UpdateRoom;
+            RoomEditor.PlayModeActivatedAction += UpdateLocation;
+
+            void RoomUnloaded() {
+                if(!_client.ownPlayer.ResetLocation()) return;
+                _client.UpdateWorldPack();
+                _client.UpdateWorld();
+                _client.UpdateRoom();
+            }
+            PauseScreen.pauseScreenExitAction += RoomUnloaded;
+            RoomEditor.EditModeActivatedAction += RoomUnloaded;
+        }
+
         private void SubscribeToCatControlsEvents(CatControls controls) {
             controls.StateSwitchAction += state => {
-                CapturedData.catState = (State)state;
+                CapturedData.catState = (Cat.State)state;
                 CapturedData.catScale = CapturedData.catState.GetScale();
             };
 

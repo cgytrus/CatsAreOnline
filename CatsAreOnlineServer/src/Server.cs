@@ -38,6 +38,8 @@ namespace CatsAreOnlineServer {
             }
 
             _receivingDataMessages = new Dictionary<DataType, Action<NetBuffer>> {
+                { DataType.PlayerChangedWorldPack, PlayerChangedWorldPackReceived },
+                { DataType.PlayerChangedWorld, PlayerChangedWorldReceived },
                 { DataType.PlayerChangedRoom, PlayerChangedRoomReceived },
                 { DataType.PlayerChangedControllingObject, PlayerChangedControllingObjectReceived },
                 { DataType.SyncedObjectAdded, SyncedObjectAddedReceived },
@@ -242,7 +244,12 @@ namespace CatsAreOnlineServer {
                 id = guid,
                 username = username,
                 displayName = displayName,
-                room = message.ReadString(),
+                worldPackGuid = message.ReadString(),
+                worldPackName = message.ReadString(),
+                worldGuid = message.ReadString(),
+                worldName = message.ReadString(),
+                roomGuid = message.ReadString(),
+                roomName = message.ReadString(),
                 controlling = Guid.Parse(message.ReadString())
             };
             playerRegistry.Add(guid, player);
@@ -267,27 +274,84 @@ namespace CatsAreOnlineServer {
             _server.SendToAll(notifyMessage, DeliveryMethods.Reliable);
         }
 
+        private static void PlayerChangedWorldPackReceived(NetBuffer message) {
+            (Player player, bool registered) = GetClientData(message);
+            if(!registered) return;
+
+            string worldPackGuid = message.ReadString();
+            string worldPackName = message.ReadString();
+
+            if(player.LocationEqual(worldPackGuid, player.worldGuid, player.roomGuid)) return;
+
+            List<Guid> toRemove = (from syncedObject in syncedObjectRegistry
+                                   where syncedObject.Value.owner.username == player.username
+                                   select syncedObject.Key).ToList();
+            foreach(Guid id in toRemove) syncedObjectRegistry.Remove(id);
+
+            player.worldPackGuid = worldPackGuid;
+            player.worldPackName = worldPackName;
+
+            LogPlayerAction(player, $"changed world pack to {worldPackName} ({worldPackGuid})");
+            
+            NetOutgoingMessage notifyMessage = _server.CreateMessage();
+            notifyMessage.Write((byte)DataType.PlayerChangedWorldPack);
+            notifyMessage.Write(player.username);
+            notifyMessage.Write(player.worldPackGuid);
+            notifyMessage.Write(player.worldPackName);
+            _server.SendToAll(notifyMessage, DeliveryMethods.Reliable);
+        }
+
+        private static void PlayerChangedWorldReceived(NetBuffer message) {
+            (Player player, bool registered) = GetClientData(message);
+            if(!registered) return;
+
+            string worldGuid = message.ReadString();
+            string worldName = message.ReadString();
+
+            if(player.LocationEqual(player.worldPackGuid, worldGuid, player.roomGuid)) return;
+
+            List<Guid> toRemove = (from syncedObject in syncedObjectRegistry
+                                   where syncedObject.Value.owner.username == player.username
+                                   select syncedObject.Key).ToList();
+            foreach(Guid id in toRemove) syncedObjectRegistry.Remove(id);
+
+            player.worldGuid = worldGuid;
+            player.worldName = worldName;
+
+            LogPlayerAction(player, $"changed world to {worldName} ({worldGuid})");
+            
+            NetOutgoingMessage notifyMessage = _server.CreateMessage();
+            notifyMessage.Write((byte)DataType.PlayerChangedWorld);
+            notifyMessage.Write(player.username);
+            notifyMessage.Write(player.worldGuid);
+            notifyMessage.Write(player.worldName);
+            _server.SendToAll(notifyMessage, DeliveryMethods.Reliable);
+        }
+
         private static void PlayerChangedRoomReceived(NetBuffer message) {
             (Player player, bool registered) = GetClientData(message);
             if(!registered) return;
-            
-            string room = message.ReadString();
 
-            if(!player.RoomEqual(room)) {
-                List<Guid> toRemove = (from syncedObject in syncedObjectRegistry
-                                              where syncedObject.Value.owner.username == player.username
-                                              select syncedObject.Key).ToList();
-                foreach(Guid id in toRemove) syncedObjectRegistry.Remove(id);
-            }
+            string roomGuid = message.ReadString();
+            string roomName = message.ReadString();
 
-            player.room = room;
-            
-            LogPlayerAction(player, $"changed room to {room}");
+            if(player.LocationEqual(player.worldPackGuid, player.worldGuid, roomGuid)) return;
+
+            List<Guid> toRemove = (from syncedObject in syncedObjectRegistry
+                                   where syncedObject.Value.owner.username == player.username
+                                   select syncedObject.Key).ToList();
+            foreach(Guid id in toRemove) syncedObjectRegistry.Remove(id);
+
+            player.roomGuid = roomGuid;
+            player.roomName = roomName;
+
+            LogPlayerAction(player, $"changed room to {roomName} ({roomGuid})");
             
             NetOutgoingMessage notifyMessage = _server.CreateMessage();
             notifyMessage.Write((byte)DataType.PlayerChangedRoom);
             notifyMessage.Write(player.username);
-            notifyMessage.Write(player.room);
+            notifyMessage.Write(player.roomGuid);
+            notifyMessage.Write(player.roomName);
             _server.SendToAll(notifyMessage, DeliveryMethods.Reliable);
         }
 
@@ -396,10 +460,10 @@ namespace CatsAreOnlineServer {
             tempConnections.Clear();
             // ReSharper disable once ForeachCanBePartlyConvertedToQueryUsingAnotherGetEnumerator
             foreach((Guid _, Player player) in playerRegistry) {
-                if(!player.RoomEqual(fromPlayer)) continue;
+                if(!player.LocationEqual(fromPlayer)) continue;
                 tempConnections.Add(player.connection);
             }
-            _server.SendMessage(message, tempConnections, method, 0);
+            if(tempConnections.Count > 0) _server.SendMessage(message, tempConnections, method, 0);
         }
 
         public static void SendChatMessage(Player player, string message) {

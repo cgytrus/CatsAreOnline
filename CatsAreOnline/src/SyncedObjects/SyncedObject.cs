@@ -99,9 +99,8 @@ namespace CatsAreOnline.SyncedObjects {
             transform.eulerAngles = currentRot;
         }
 
-        public virtual void UpdateRoom() {
-            bool sameRoom = state.client.ownPlayer.room == owner.room &&
-                            !string.IsNullOrEmpty(state.client.ownPlayer.room);
+        public virtual void UpdateLocation() {
+            bool sameRoom = state.client.ownPlayer.LocationEqual(owner);
             bool own = owner.username == state.client.ownPlayer.username;
             gameObject.SetActive(sameRoom);
             nameTag.gameObject.SetActive(sameRoom);
@@ -178,7 +177,7 @@ namespace CatsAreOnline.SyncedObjects {
                     cat.SetRotation(rotation);
                     cat.SetIce(ice);
                     
-                    cat.UpdateRoom();
+                    cat.UpdateLocation();
             
                     return cat;
                 case SyncedObjectType.Companion:
@@ -200,7 +199,7 @@ namespace CatsAreOnline.SyncedObjects {
                     companion.SetScale(scale);
                     companion.SetRotation(rotation);
                     
-                    companion.UpdateRoom();
+                    companion.UpdateLocation();
             
                     return companion;
             }
