@@ -210,7 +210,7 @@ namespace CatsAreOnlineServer {
             Console.ResetColor();
 
             void RegisterPlayerError(string reason) {
-                message.SenderConnection.Disconnect($"{reason}.");
+                message.SenderConnection.Disconnect($"{reason}");
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"Could not register player {username} @ {ip} ({reason})");
                 Console.ResetColor();
