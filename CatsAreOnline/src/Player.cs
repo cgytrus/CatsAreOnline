@@ -4,8 +4,6 @@ using Lidgren.Network;
 
 using PolyMap;
 
-using UnityEngine;
-
 namespace CatsAreOnline {
     public class Player {
         public string username { get; }

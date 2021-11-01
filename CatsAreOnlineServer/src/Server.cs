@@ -15,7 +15,8 @@ namespace CatsAreOnlineServer {
         public const string Version = "0.5.0";
         public static TimeSpan targetTickTime { get; } = TimeSpan.FromSeconds(0.01d);
 
-        public static int playerCount => playerRegistry.Count;
+        public static IReadOnlyDictionary<Guid, Player> players => playerRegistry;
+        public static TimeSpan uptime => _uptimeStopwatch.Elapsed;
 
         private const int MaxUsernameLength = 64;
         private const int MaxDisplayNameLength = 64;
@@ -24,6 +25,7 @@ namespace CatsAreOnlineServer {
         private static readonly Dictionary<Guid, SyncedObject> syncedObjectRegistry = new();
 
         private static NetServer _server;
+        private static Stopwatch _uptimeStopwatch;
         private static readonly List<NetConnection> tempConnections = new();
 
         private static IReadOnlyDictionary<DataType, Action<NetBuffer>> _receivingDataMessages;
@@ -57,7 +59,7 @@ namespace CatsAreOnlineServer {
             };
 
             config.DisableMessageType(NetIncomingMessageType.Receipt);
-            config.DisableMessageType(NetIncomingMessageType.ConnectionApproval);
+            config.EnableMessageType(NetIncomingMessageType.ConnectionApproval);
             config.DisableMessageType(NetIncomingMessageType.DebugMessage);
             config.DisableMessageType(NetIncomingMessageType.DiscoveryRequest); // enable later
             config.DisableMessageType(NetIncomingMessageType.DiscoveryResponse); // enable later
@@ -78,6 +80,8 @@ namespace CatsAreOnlineServer {
 
             while(_server.Status != NetPeerStatus.Running) { }
 
+            _uptimeStopwatch = Stopwatch.StartNew();
+
             Thread serverThread = new(ServerThread);
             serverThread.Start();
 
@@ -92,34 +96,38 @@ namespace CatsAreOnlineServer {
         }
 
         public static void Stop() {
+            _uptimeStopwatch.Stop();
             Console.WriteLine("Stopping server...");
             _server.Shutdown("Server closed");
             _server.UPnP.DeleteForwardingRule(_server.Port);
         }
 
         private static void ServerThread() {
-            Stopwatch stopwatch = Stopwatch.StartNew();
+            Stopwatch tickStopwatch = Stopwatch.StartNew();
             while(_server.Status == NetPeerStatus.Running) {
-                stopwatch.Restart();
-                
+                tickStopwatch.Restart();
+
                 NetIncomingMessage message;
                 while((message = _server.ReadMessage()) != null) {
                     MessageReceived(message);
                     _server.Recycle(message);
                 }
 
-                TimeSpan timeout = targetTickTime - stopwatch.Elapsed;
+                TimeSpan timeout = targetTickTime - tickStopwatch.Elapsed;
                 if(timeout.Ticks > 0L) Thread.Sleep(timeout);
             }
         }
 
         private static void MessageReceived(NetIncomingMessage message) {
             switch(message.MessageType) {
-                case NetIncomingMessageType.Data:
-                    DataMessageReceived(message);
+                case NetIncomingMessageType.ConnectionApproval:
+                    ConnectionApprovalMessageReceived(message);
                     break;
                 case NetIncomingMessageType.StatusChanged:
                     StatusChangedMessageReceived(message);
+                    break;
+                case NetIncomingMessageType.Data:
+                    DataMessageReceived(message);
                     break;
                 case NetIncomingMessageType.WarningMessage:
                     Console.ForegroundColor = ConsoleColor.Yellow;
@@ -140,77 +148,17 @@ namespace CatsAreOnlineServer {
             }
         }
 
-        private static void StatusChangedMessageReceived(NetIncomingMessage message) {
-            NetConnectionStatus status = (NetConnectionStatus)message.ReadByte();
-            switch(status) {
-                case NetConnectionStatus.Connected:
-                    Console.ForegroundColor = ConsoleColor.DarkGreen;
-                    Console.WriteLine(message.ReadString());
-                    Console.ResetColor();
-                    break;
-                case NetConnectionStatus.RespondedConnect:
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-                    Console.WriteLine(message.ReadString());
-                    Console.ResetColor();
-                    break;
-                case NetConnectionStatus.Disconnected:
-                    ClientDisconnected(message);
-                    break;
-                default:
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-                    Console.WriteLine($"[UNHANDLED] {message.MessageType} {status} {message.ReadString()}");
-                    Console.ResetColor();
-                    break;
-            }
-        }
-
-        private static void ClientDisconnected(NetBuffer message) {
-            foreach((Guid id, Player player) in new Dictionary<Guid, Player>(playerRegistry)) {
-                if(player.connection.Status == NetConnectionStatus.Connected) continue;
-
-                string username = player.username;
-                string reason = message.ReadString();
-
-                LogPlayerAction(player, $"left ({reason})");
-
-                NetOutgoingMessage notifyMessage = _server.CreateMessage();
-                notifyMessage.Write((byte)DataType.PlayerLeft);
-                notifyMessage.Write(username);
-                _server.SendToAll(notifyMessage, DeliveryMethods.Global);
-
-                List<Guid> toRemove = (from syncedObject in syncedObjectRegistry
-                                       where syncedObject.Value.owner.username == player.username
-                                       select syncedObject.Key).ToList();
-                foreach(Guid objId in toRemove) syncedObjectRegistry.Remove(objId);                
-                playerRegistry.Remove(id);
-            }
-        }
-
-        private static void DataMessageReceived(NetIncomingMessage message) {
-            DataType type = (DataType)message.ReadByte();
-            
-            if(type == DataType.RegisterPlayer) RegisterPlayerReceived(message);
-            else if(_receivingDataMessages.TryGetValue(type, out Action<NetBuffer> action)) action(message);
-            else {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"[WARN] Unknown message type received ({type.ToString()})");
-                Console.ResetColor();
-            }
-        }
-
-        private static void RegisterPlayerReceived(NetIncomingMessage message) {
-            (Player _, bool registered) = GetClientData(message);
-            if(registered) return;
+        private static void ConnectionApprovalMessageReceived(NetIncomingMessage message) {
             IPEndPoint ip = message.SenderEndPoint;
             string username = message.ReadString();
             string displayName = message.ReadString();
 
-            Console.ForegroundColor = ConsoleColor.Green;
+            Console.ForegroundColor = ConsoleColor.DarkGreen;
             Console.WriteLine($"Registering player {username} @ {ip}");
             Console.ResetColor();
 
             void RegisterPlayerError(string reason) {
-                message.SenderConnection.Disconnect($"{reason}");
+                message.SenderConnection.Deny(reason);
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"Could not register player {username} @ {ip} ({reason})");
                 Console.ResetColor();
@@ -253,9 +201,8 @@ namespace CatsAreOnlineServer {
                 controlling = Guid.Parse(message.ReadString())
             };
             playerRegistry.Add(guid, player);
-            
+
             NetOutgoingMessage secretMessage = _server.CreateMessage();
-            secretMessage.Write((byte)DataType.RegisterPlayer);
             secretMessage.Write(guid.ToString());
             secretMessage.Write(playerRegistry.Count - 1);
             foreach((Guid regGuid, Player regPlayer) in playerRegistry) {
@@ -265,13 +212,80 @@ namespace CatsAreOnlineServer {
             secretMessage.Write(syncedObjectRegistry.Count);
             foreach((Guid _, SyncedObject syncedObject) in syncedObjectRegistry) syncedObject.Write(secretMessage);
 
-            _server.SendMessage(secretMessage, message.SenderConnection, DeliveryMethods.Reliable);
-            
-            // notifies all the players about the joined player
-            NetOutgoingMessage notifyMessage = _server.CreateMessage();
-            notifyMessage.Write((byte)DataType.PlayerJoined);
-            player.Write(notifyMessage);
-            _server.SendToAll(notifyMessage, DeliveryMethods.Reliable);
+            message.SenderConnection.Approve(secretMessage);
+        }
+
+        private static void StatusChangedMessageReceived(NetIncomingMessage message) {
+            NetConnectionStatus status = (NetConnectionStatus)message.ReadByte();
+            switch(status) {
+                case NetConnectionStatus.RespondedAwaitingApproval:
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.WriteLine(message.ReadString());
+                    Console.ResetColor();
+                    break;
+                case NetConnectionStatus.RespondedConnect:
+                    Console.ForegroundColor = ConsoleColor.DarkGreen;
+                    Console.WriteLine(message.ReadString());
+                    Console.ResetColor();
+                    break;
+                case NetConnectionStatus.Connected:
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine(message.ReadString());
+                    Console.ResetColor();
+                    Connected(message);
+                    break;
+                case NetConnectionStatus.Disconnected:
+                    ClientDisconnected(message);
+                    break;
+                default:
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.WriteLine($"[UNHANDLED] {message.MessageType} {status} {message.ReadString()}");
+                    Console.ResetColor();
+                    break;
+            }
+        }
+
+        private static void Connected(NetIncomingMessage message) {
+            foreach((Guid _, Player player) in playerRegistry) {
+                if(player.connection != message.SenderConnection) continue;
+                NetOutgoingMessage notifyMessage = _server.CreateMessage();
+                notifyMessage.Write((byte)DataType.PlayerJoined);
+                player.Write(notifyMessage);
+                _server.SendToAll(notifyMessage, DeliveryMethods.Reliable);
+            }
+        }
+
+        private static void ClientDisconnected(NetBuffer message) {
+            foreach((Guid id, Player player) in new Dictionary<Guid, Player>(playerRegistry)) {
+                if(player.connection.Status == NetConnectionStatus.Connected) continue;
+
+                string username = player.username;
+                string reason = message.ReadString();
+
+                LogPlayerAction(player, $"left ({reason})");
+
+                NetOutgoingMessage notifyMessage = _server.CreateMessage();
+                notifyMessage.Write((byte)DataType.PlayerLeft);
+                notifyMessage.Write(username);
+                _server.SendToAll(notifyMessage, DeliveryMethods.Global);
+
+                List<Guid> toRemove = (from syncedObject in syncedObjectRegistry
+                                       where syncedObject.Value.owner.username == player.username
+                                       select syncedObject.Key).ToList();
+                foreach(Guid objId in toRemove) syncedObjectRegistry.Remove(objId);                
+                playerRegistry.Remove(id);
+            }
+        }
+
+        private static void DataMessageReceived(NetBuffer message) {
+            DataType type = (DataType)message.ReadByte();
+
+            if(_receivingDataMessages.TryGetValue(type, out Action<NetBuffer> action)) action(message);
+            else {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"[WARN] Unknown message type received ({type.ToString()})");
+                Console.ResetColor();
+            }
         }
 
         private static void PlayerChangedWorldPackReceived(NetBuffer message) {
@@ -367,7 +381,7 @@ namespace CatsAreOnlineServer {
             notifyMessage.Write(player.controlling.ToString());
             _server.SendToAll(notifyMessage, DeliveryMethods.Reliable);
         }
-        
+
         private static void SyncedObjectAddedReceived(NetBuffer message) {
             (Player player, bool registered) = GetClientData(message);
             if(!registered) return;
@@ -386,13 +400,13 @@ namespace CatsAreOnlineServer {
         private static void SyncedObjectRemovedReceived(NetBuffer message) {
             (Player player, bool registered) = GetClientData(message);
             if(!registered) return;
-            
+
             Guid id = Guid.Parse(message.ReadString());
             if(!syncedObjectRegistry.TryGetValue(id, out SyncedObject syncedObject)) return;
             if(syncedObject.owner != player) return;
 
             syncedObjectRegistry.Remove(id);
-            
+
             NetOutgoingMessage notifyMessage = _server.CreateMessage();
             notifyMessage.Write((byte)DataType.SyncedObjectRemoved);
             notifyMessage.Write(id.ToString());
@@ -416,7 +430,7 @@ namespace CatsAreOnlineServer {
                     notifyMessage.Write((byte)DataType.SyncedObjectChangedState);
                     notifyMessage.Write(syncedObject.id.ToString());
                 }
-                
+
                 syncedObject.ReadChangedState(message, notifyMessage, stateTypeByte, ref deliveryMethod);
             }
 
@@ -452,7 +466,7 @@ namespace CatsAreOnlineServer {
 
         private static void ExecuteCommand(Player player, string command) {
             try { Commands.dispatcher.Execute(command, player); }
-            catch(Exception ex) { SendChatMessage(player, ServerErrorMessage(ex.Message)); }
+            catch(Exception ex) { SendChatMessage(null, player, ServerErrorMessage(ex.Message)); }
         }
 
         // ReSharper disable once SuggestBaseTypeForParameter
@@ -466,23 +480,27 @@ namespace CatsAreOnlineServer {
             if(tempConnections.Count > 0) _server.SendMessage(message, tempConnections, method, 0);
         }
 
-        public static void SendChatMessage(Player player, string message) {
+        public static void SendChatMessageToAll(Player from, string message) {
             Console.WriteLine(message);
-            if(player is null) return;
             NetOutgoingMessage response = _server.CreateMessage();
             response.Write((byte)DataType.ChatMessage);
-            response.Write(player.username);
+            response.Write(from?.username);
             response.Write(message);
-            _server.SendMessage(response, player.connection, DeliveryMethods.Reliable);
+            _server.SendToAll(response, DeliveryMethods.Reliable);
         }
 
-        public static string ServerMessage(string message) => $"<color=blue>[SERVER]</color> {message}";
-        public static string ServerDebugMessage(string message) =>
-            ServerMessage($"<color=grey><b>DEBUG:</b> {message}</color>");
-        public static string ServerWarningMessage(string message) =>
-            ServerMessage($"<color=yellow><b>WARN:</b> {message}</color>");
-        public static string ServerErrorMessage(string message) =>
-            ServerMessage($"<color=red><b>ERROR:</b> {message}</color>");
+        public static void SendChatMessage(Player from, Player to, string message) {
+            Console.WriteLine(message);
+            NetOutgoingMessage response = _server.CreateMessage();
+            response.Write((byte)DataType.ChatMessage);
+            response.Write(from?.username);
+            response.Write(message);
+            if(to is not null) _server.SendMessage(response, to.connection, DeliveryMethods.Reliable);
+        }
+
+        public static string ServerDebugMessage(string message) => $"<color=grey><b>DEBUG:</b> {message}</color>";
+        public static string ServerWarningMessage(string message) => $"<color=yellow><b>WARN:</b> {message}</color>";
+        public static string ServerErrorMessage(string message) => $"<color=red><b>ERROR:</b> {message}</color>";
 
         private static (Player player, bool registered) GetClientData(NetBuffer message) =>
             Guid.TryParse(message.ReadString(), out Guid guid) && playerRegistry.TryGetValue(guid, out Player player) ?

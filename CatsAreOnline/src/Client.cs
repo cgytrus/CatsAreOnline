@@ -68,8 +68,6 @@ namespace CatsAreOnline {
         public ICollection<Player> players => _playerRegistry.Values;
         public ICollection<SyncedObject> syncedObjects => _syncedObjectRegistry.Values;
 
-        public readonly ClientDebug debug = new();
-
         private readonly ManualLogSource _logger;
         
         private readonly Dictionary<string, Player> _playerRegistry = new();
@@ -103,7 +101,6 @@ namespace CatsAreOnline {
             _logger = logger;
 
             _receivingDataMessages = new Dictionary<DataType, Action<NetBuffer>> {
-                { DataType.RegisterPlayer, RegisterPlayerReceived },
                 { DataType.PlayerJoined, PlayerJoinedReceived },
                 { DataType.PlayerLeft, PlayerLeftReceived },
                 { DataType.PlayerChangedWorldPack, PlayerChangedWorldPackReceived },
@@ -124,7 +121,7 @@ namespace CatsAreOnline {
             NetPeerConfiguration config = new("mod.cgytrus.plugins.calOnline");
             
             config.DisableMessageType(NetIncomingMessageType.Receipt);
-            config.DisableMessageType(NetIncomingMessageType.ConnectionApproval);
+            config.EnableMessageType(NetIncomingMessageType.ConnectionApproval);
             config.DisableMessageType(NetIncomingMessageType.DebugMessage);
             config.DisableMessageType(NetIncomingMessageType.DiscoveryRequest); // enable later
             config.DisableMessageType(NetIncomingMessageType.DiscoveryResponse); // enable later
@@ -152,7 +149,9 @@ namespace CatsAreOnline {
                 controlling = ownPlayer.controlling
             };
 
-            _client.Connect(ip, port);
+            NetOutgoingMessage approval = _client.CreateMessage();
+            ownPlayer.Write(approval);
+            _client.Connect(ip, port, approval);
         }
 
         public void Disconnect() {
@@ -324,11 +323,11 @@ namespace CatsAreOnline {
 
         private void MessageReceived(NetIncomingMessage message) {
             switch(message.MessageType) {
-                case NetIncomingMessageType.Data:
-                    DataMessageReceived(message);
-                    break;
                 case NetIncomingMessageType.StatusChanged:
                     StatusChangedMessageReceived(message);
+                    break;
+                case NetIncomingMessageType.Data:
+                    DataMessageReceived(message);
                     break;
                 case NetIncomingMessageType.WarningMessage:
                     _logger.LogWarning($"{message.ReadString()}");
@@ -347,7 +346,7 @@ namespace CatsAreOnline {
             NetConnectionStatus status = (NetConnectionStatus)message.ReadByte();
             switch(status) {
                 case NetConnectionStatus.Connected:
-                    Connected();
+                    Connected(message.SenderConnection.RemoteHailMessage);
                     break;
                 case NetConnectionStatus.Disconnected:
                     Disconnected(message.ReadString());
@@ -358,15 +357,50 @@ namespace CatsAreOnline {
             }
         }
         
-        private void Connected() {
+        private void Connected(NetBuffer hailMessage) {
             _logger.LogInfo("Connected to the server");
-            NetOutgoingMessage message = _client.CreateMessage();
-            message.Write((byte)DataType.RegisterPlayer);
-            message.Write(""); // send an empty guid because we don't have one yet
-            ownPlayer.Write(message);
-            SendMessageToServer(message, DeliveryMethods.Reliable);
+
+            _guid = hailMessage.ReadString();
+
+            int playerCount = hailMessage.ReadInt32();
+            for(int i = 0; i < playerCount; i++) {
+                Player player = new(hailMessage.ReadString(), hailMessage.ReadString()) {
+                    worldPackGuid = hailMessage.ReadString(),
+                    worldPackName = hailMessage.ReadString(),
+                    worldGuid = hailMessage.ReadString(),
+                    worldName = hailMessage.ReadString(),
+                    roomGuid = hailMessage.ReadString(),
+                    roomName = hailMessage.ReadString(),
+                    controlling = Guid.Parse(hailMessage.ReadString())
+                };
+                _logger.LogInfo($"Registering player {player.username}");
+                _playerRegistry.Add(player.username, player);
+            }
+
+            int syncedObjectCount = hailMessage.ReadInt32();
+            for(int i = 0; i < syncedObjectCount; i++) {
+                string username = hailMessage.ReadString();
+                SyncedObjectType type = (SyncedObjectType)hailMessage.ReadByte();
+                Guid id = Guid.Parse(hailMessage.ReadString());
+                if(!_playerRegistry.TryGetValue(username, out Player player)) { // this should never happen
+                    // skip the next data, as it's useless since we can't create the object
+                    // because its owner doesn't exist (how?????)
+                    _logger.LogError("wtf, the owner didn't exist somehow");
+                    SyncedObject.Create(this, type, id, ownPlayer, hailMessage).Remove();
+                    continue;
+                }
+
+                SyncedObject syncedObject = SyncedObject.Create(this, type, id, player, hailMessage);
+                _syncedObjectRegistry.Add(syncedObject.id, syncedObject);
+            }
+
+            bool inCompanion = companionId != Guid.Empty && companionState != null;
+
+            AddCat();
+
+            if(inCompanion) AddSyncedObject(companionId, SyncedObjectType.Companion, companionState, true);
         }
-        
+
         private void Disconnected(string reason) {
             _logger.LogInfo("Disconnected from the server");
             MultiplayerPlugin.connected.Value = false;
@@ -381,53 +415,9 @@ namespace CatsAreOnline {
         private void DataMessageReceived(NetBuffer message) {
             byte typeByte = message.ReadByte();
             DataType type = (DataType)typeByte;
-            
-            debug.PrintServer(type);
 
             if(_receivingDataMessages.TryGetValue(type, out Action<NetBuffer> action)) action(message);
             else _logger.LogWarning($"[WARN] Unknown message type received: {type.ToString()}");
-        }
-
-        private void RegisterPlayerReceived(NetBuffer message) {
-            _guid = message.ReadString();
-            
-            int playerCount = message.ReadInt32();
-            for(int i = 0; i < playerCount; i++) {
-                Player player = new(message.ReadString(), message.ReadString()) {
-                    worldPackGuid = message.ReadString(),
-                    worldPackName = message.ReadString(),
-                    worldGuid = message.ReadString(),
-                    worldName = message.ReadString(),
-                    roomGuid = message.ReadString(),
-                    roomName = message.ReadString(),
-                    controlling = Guid.Parse(message.ReadString())
-                };
-                _logger.LogInfo($"Registering player {player.username}");
-                _playerRegistry.Add(player.username, player);
-            }
-
-            int syncedObjectCount = message.ReadInt32();
-            for(int i = 0; i < syncedObjectCount; i++) {
-                string username = message.ReadString();
-                SyncedObjectType type = (SyncedObjectType)message.ReadByte();
-                Guid id = Guid.Parse(message.ReadString());
-                if(!_playerRegistry.TryGetValue(username, out Player player)) { // this should never happen
-                    // skip the next data, as it's useless since we can't create the object
-                    // because its owner doesn't exist (how?????)
-                    _logger.LogError("wtf, the owner didn't exist somehow");
-                    SyncedObject.Create(this, type, id, ownPlayer, message).Remove();
-                    continue;
-                }
-
-                SyncedObject syncedObject = SyncedObject.Create(this, type, id, player, message);
-                _syncedObjectRegistry.Add(syncedObject.id, syncedObject);
-            }
-
-            bool inCompanion = companionId != Guid.Empty && companionState != null;
-
-            AddCat();
-            
-            if(inCompanion) AddSyncedObject(companionId, SyncedObjectType.Companion, companionState, true);
         }
 
         private void PlayerJoinedReceived(NetBuffer message) {
@@ -567,11 +557,12 @@ namespace CatsAreOnline {
 
         private void ChatMessageReceived(NetBuffer message) {
             string username = message.ReadString();
-            if(!_playerRegistry.TryGetValue(username, out Player player)) return;
-            
+            Player player = new("SERVER", "<color=blue>SERVER</color>");
+            if(!string.IsNullOrEmpty(username) && !_playerRegistry.TryGetValue(username, out player)) return;
+
             string text = message.ReadString();
 
-            _logger.LogInfo($"[{player.username} ({username})] {text}");
+            _logger.LogInfo($"[{player.username}] {text}");
             Chat.Chat.AddMessage($"[{player.displayName}] {text}");
         }
 
@@ -582,9 +573,7 @@ namespace CatsAreOnline {
             return message;
         }
 
-        private void SendMessageToServer(NetOutgoingMessage message, NetDeliveryMethod method) {
-            debug.PrintClient(message);
+        private void SendMessageToServer(NetOutgoingMessage message, NetDeliveryMethod method) =>
             _client.SendMessage(message, method);
-        }
     }
 }

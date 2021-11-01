@@ -39,7 +39,6 @@
         <Compile Include="src\Chat\Chat.cs" />
         <Compile Include="src\Chat\Message.cs" />
         <Compile Include="src\Client.cs" />
-        <Compile Include="src\ClientDebug.cs" />
         <Compile Include="src\Commands.cs" />
         <Compile Include="src\NetBufferExtensions.cs" />
         <Compile Include="src\Patches\CurrentIceUpdates.cs" />

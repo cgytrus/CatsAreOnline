@@ -12,14 +12,12 @@ using NBrigadier.Tree;
 
 using UnityEngine;
 
-using Object = UnityEngine.Object;
-
 namespace CatsAreOnline {
     public static class Commands {
         public static CommandDispatcher<Client> dispatcher { get; } = new();
 
         private static readonly Dictionary<CommandNode<Client>, string> descriptions = new();
-        
+
         public static void Initialize() {
             descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Client>.Literal("help")
                 .Then(RequiredArgumentBuilder<Client, int>.Argument("page", IntegerArgumentType.Integer(1))
@@ -36,20 +34,6 @@ namespace CatsAreOnline {
                 HelpCommand(0, context.Source);
                 return 1;
             })), "Prints this message.");
-
-            descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Client>.Literal("debug")
-                .Then(RequiredArgumentBuilder<Client, string>.Argument("flags", StringArgumentType.String())
-                    .Executes(context => {
-                        context.Source.debug.enabled = true;
-
-                        foreach(string arg in StringArgumentType.GetString(context, "flags").Split(' '))
-                            DebugCommand(arg, context.Source);
-                        return 1;
-                    }))
-                .Executes(context => {
-                    context.Source.debug.enabled = !context.Source.debug.enabled;
-                    return 1;
-                })), "Prints some server and client debug info");
 
             descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Client>.Literal("players")
                 .Then(RequiredArgumentBuilder<Client, int>.Argument("page", IntegerArgumentType.Integer(1))
@@ -69,7 +53,7 @@ namespace CatsAreOnline {
                 })), "Prints online players.");
 
             descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Client>.Literal("info")
-                    .Executes(RedirectToServer)), "Prints some info about the server");
+                .Executes(RedirectToServer)), "Prints some info about the server.");
 
             descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Client>.Literal("teleport")
                 .Then(RequiredArgumentBuilder<Client, string>.Argument("username", StringArgumentType.String())
@@ -97,7 +81,7 @@ namespace CatsAreOnline {
                     SpectateCommand(context);
                     return 1;
                 })), "Spectate a player in the same room as you.");
-            
+
             descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Client>.Literal("enter")
                 .Then(RequiredArgumentBuilder<Client, string>
                     .Argument("username", StringArgumentType.String())
@@ -114,6 +98,20 @@ namespace CatsAreOnline {
                                     StringArgumentType.GetString(context, "roomGuid"));
                                 return 1;
                             }))))), "Enter the specified room.");
+
+            descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Client>.Literal("locate")
+                .Then(RequiredArgumentBuilder<Client, string>.Argument("username", StringArgumentType.String())
+                    .Executes(context => {
+                        LocateCommand(context, StringArgumentType.GetString(context, "username"));
+                        return 1;
+                    }))
+                .Executes(context => {
+                    LocateCommand(context.Source.ownPlayer);
+                    return 1;
+                })), "Prints the location of a player.");
+
+            descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Client>.Literal("say")
+                .Executes(RedirectToServer)), "Sends a message in the chat.");
         }
 
         private static int RedirectToServer(CommandContext<Client> context) {
@@ -124,9 +122,9 @@ namespace CatsAreOnline {
         private static void PrintCollection<T>(ICollection<T> collection, int page, Func<T, string> selector) {
             int pageCapacity = Chat.Chat.messagesCapacity - 2;
             int totalPages = collection.Count / pageCapacity;
-            
+
             page = Mathf.Clamp(page, 0, totalPages);
-            
+
             Chat.Chat.AddMessage($"Page {(page + 1).ToString()}/{(totalPages + 1).ToString()}");
             int i = 0;
             foreach(T item in collection) {
@@ -151,75 +149,10 @@ namespace CatsAreOnline {
         private static void HelpCommand(string command, Client source) {
             CommandNode<Client> node = dispatcher.FindNode(new string[] { command });
             IDictionary<CommandNode<Client>, string> usages = dispatcher.GetSmartUsage(node, source);
-            
+
             foreach((CommandNode<Client> _, string usage) in usages)
                 Chat.Chat.AddMessage(descriptions.TryGetValue(node, out string description) ?
                     $"{command} - {description} Usage: {usage}" : $"{command} {usage}");
-        }
-
-        private static void DebugCommand(string arg, Client source) {
-            ClientDebug.DataTypeFlag ToggleFlags(ClientDebug.DataTypeFlag current) =>
-                current == ClientDebug.DataTypeFlag.All ? ClientDebug.DataTypeFlag.None : ClientDebug.DataTypeFlag.All;
-
-            if(!DebugCommandArgValid(arg, out string[] splitArg, out string argType)) return;
-
-            switch(splitArg.Length) {
-                case 3 or 2: {
-                    string dataType = splitArg[1];
-                    if(!Enum.TryParse(dataType, true, out ClientDebug.DataTypeFlag flag)) {
-                        Chat.Chat.AddWarningMessage($"Unknown data type '{arg}'");
-                        return;
-                    }
-
-                    DebugCommandParse3Or2Args(flag, splitArg, argType, source);
-
-                    break;
-                }
-                case 1 when argType == "client": source.debug.client = ToggleFlags(source.debug.client);
-                    break;
-                case 1: source.debug.server = ToggleFlags(source.debug.server);
-                    break;
-            }
-        }
-        private static void DebugCommandParse3Or2Args(ClientDebug.DataTypeFlag dataTypeFlag,
-            IReadOnlyCollection<string> splitArg, string argType, Client source) {
-            switch(splitArg.Count) {
-                case 3:
-                    Chat.Chat.AddDebugMessage(argType == "client" ?
-                        $"[CLIENT] {source.debug.client.HasFlag(dataTypeFlag).ToString()}" :
-                        $"[SERVER] {source.debug.server.HasFlag(dataTypeFlag).ToString()}");
-                    break;
-                case 2 when argType == "client":
-                    source.debug.client ^= dataTypeFlag;
-                    break;
-                case 2:
-                    source.debug.server ^= dataTypeFlag;
-                    break;
-            }
-        }
-
-        private static bool DebugCommandArgValid(string arg, out string[] splitArg, out string argType) {
-            splitArg = arg.Split('_');
-            if(splitArg.Length is < 1 or > 3) {
-                Chat.Chat.AddWarningMessage($"Invalid argument syntax ('{arg}')");
-                argType = null;
-                return false;
-            }
-
-            argType = splitArg[0].ToLowerInvariant();
-            if(argType != "client" && argType != "server") {
-                Chat.Chat.AddWarningMessage($"Invalid argument syntax ('{arg}')");
-                return false;
-            }
-
-            string argAction = splitArg.Length >= 3 ? splitArg[2].ToLowerInvariant() : null;
-            // ReSharper disable once InvertIf
-            if(argAction != null && argAction != "state") {
-                Chat.Chat.AddWarningMessage($"Invalid argument syntax ('{arg}')");
-                return false;
-            }
-
-            return true;
         }
 
         private static void PlayersCommand(int page, bool printUsername, Client source) =>
@@ -227,7 +160,7 @@ namespace CatsAreOnline {
             string displayName = $"{player.displayName} ";
             string username = printUsername ? $"({player.username}) " : "";
             string room = player.IsPlaying() ? $": {player.worldPackName} - {player.worldName} - {player.roomName}" : "";
-                
+
             return $"{displayName}{username}{room}";
         });
 
@@ -245,13 +178,13 @@ namespace CatsAreOnline {
                     $"Invalid argument <b>0</b> (player <b>{username}</b> is in a different room)");
                 return;
             }
-            
+
             CapturedData.catPartManager.MoveCat(context.Source.syncedObjectRegistry[player.controlling].transform
                 .position);
             Chat.Chat.AddMessage(
                 $"Teleported <b>{context.Source.ownPlayer.displayName}</b> to <b>{player.displayName}</b>");
         }
-        
+
         private static void TeleportCommand(CommandContext<Client> context, Vector2 position) {
             CapturedData.catPartManager.MoveCat(position);
             Chat.Chat.AddMessage(
@@ -265,7 +198,7 @@ namespace CatsAreOnline {
             context.Source.spectating = null;
             Chat.Chat.AddMessage($"Stopped spectating <b>{player.username}</b>");
         }
-        
+
         private static void SpectateCommand(CommandContext<Client> context, string username) {
             Player player = (from ply in context.Source.playerRegistry where ply.Value.username == username
                              select ply.Value)
@@ -309,14 +242,14 @@ namespace CatsAreOnline {
                     $"Invalid argument <b>0</b> (player <b>{username}</b> is in the same location)");
                 return;
             }
-            
+
             EnterCommand(context, player.worldPackGuid, player.worldGuid, player.roomGuid);
         }
 
         private static void EnterCommand(CommandContext<Client> context, string worldPackGuid, string worldGuid,
             string roomGuid) {
             if(!context.Source.ownPlayer.IsPlaying()) {
-                Chat.Chat.AddErrorMessage("You're not currently in some other location");
+                Chat.Chat.AddErrorMessage("You have to already be in some room to execute this command.");
                 return;
             }
 
@@ -332,6 +265,24 @@ namespace CatsAreOnline {
             catch(Exception ex) {
                 Chat.Chat.AddErrorMessage(ex.Message);
             }
+        }
+
+        private static void LocateCommand(CommandContext<Client> context, string username) {
+            Player player = (from ply in context.Source.playerRegistry where ply.Value.username == username
+                             select ply.Value)
+                .FirstOrDefault();
+            if(player == null) {
+                Chat.Chat.AddErrorMessage($"Invalid argument <b>0</b> (player <b>{username}</b> not found)");
+                return;
+            }
+
+            LocateCommand(player);
+        }
+
+        private static void LocateCommand(Player toLocate) {
+            Chat.Chat.AddMessage($"Worldpack: {toLocate.worldPackName} ({toLocate.worldPackGuid})");
+            Chat.Chat.AddMessage($"World: {toLocate.worldName} ({toLocate.worldGuid})");
+            Chat.Chat.AddMessage($"Room: {toLocate.roomName} ({toLocate.roomGuid})");
         }
     }
 }
