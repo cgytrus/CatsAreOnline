@@ -16,7 +16,7 @@ A multiplayer mod for [Cats are Liquid - A Better Place](https://store.steampowe
 8. Press T to chat, type /help in chat for a list of available commands
 
 ### Hosting a server
-1. Forward the port you want to use
+1. Forward the port you want to use (or enable UPnP in config.json after running the server for the first time, default port is 1337)
 2. Download the [server](https://github.com/cgytrus/CatsAreOnline/releases)
 3. Run CatsAreOnlineServer.exe through Powershell or cmd if you're on Windows or CatsAreOnlineServer through terminal if you're on Linux
 
