@@ -109,9 +109,6 @@ namespace CatsAreOnline {
                     LocateCommand(context.Source.ownPlayer);
                     return 1;
                 })), "Prints the location of a player.");
-
-            descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Client>.Literal("say")
-                .Executes(RedirectToServer)), "Sends a message in the chat.");
         }
 
         private static int RedirectToServer(CommandContext<Client> context) {
