@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
-using System.Net;
 using System.Text.RegularExpressions;
 using System.Threading;
 
 using CatsAreOnline.Shared;
 
+using CatsAreOnlineServer.Configuration;
 using CatsAreOnlineServer.MessageHandlers;
 using CatsAreOnlineServer.SyncedObjects;
 
@@ -17,13 +17,12 @@ using Lidgren.Network;
 namespace CatsAreOnlineServer {
     public static class Server {
         public const string Version = "0.5.0";
-        public static TimeSpan targetTickTime { get; } = TimeSpan.FromSeconds(0.01d);
+        public static TimeSpan targetTickTime { get; private set; }
 
         public static IReadOnlyDictionary<Guid, Player> players => playerRegistry;
         public static TimeSpan uptime => _uptimeStopwatch.Elapsed;
 
-        private const int MaxUsernameLength = 64;
-        private const int MaxDisplayNameLength = 64;
+        public static Config config { get; } = new("config.json");
 
         private static readonly Dictionary<Guid, Player> playerRegistry = new();
         private static readonly Dictionary<Guid, SyncedObject> syncedObjectRegistry = new();
@@ -33,42 +32,58 @@ namespace CatsAreOnlineServer {
 
         private static MessageHandler _messageHandler;
 
-        public static void Main(string[] args) {
-            bool upnp = false;
-            if(args.Length <= 0 || !int.TryParse(args[0], out int port) ||
-               args.Length >= 2 && !bool.TryParse(args[1], out upnp)) {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Invalid arguments.");
-                return;
-            }
+        public static void Main() {
+            NetPeerConfiguration peerConfig = new("mod.cgytrus.plugins.calOnline");
 
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine("Initializing config");
+            Console.ResetColor();
+            config.Load();
+            config.AddValue("port", new ConfigValue<int>(1337)).valueChanged += (_, _) => {
+                Console.ResetColor();
+                Console.WriteLine("Port was changed, this requires a server restart to take effect!");
+            };
+            config.AddValue("upnp", new ConfigValue<bool>(false)).valueChanged += (_, _) => {
+                Console.ResetColor();
+                Console.WriteLine("UPnP was changed, this requires a server restart to take effect!");
+            };
+            config.AddValue("maxUsernameLength", new ConfigValue<int>(64));
+            config.AddValue("maxDisplayNameLength", new ConfigValue<int>(64));
+            config.AddValue("targetTickTime", new ConfigValue<double>(0.01d)).valueChanged += (_, _) => {
+                targetTickTime = TimeSpan.FromSeconds(config.GetValue<double>("targetTickTime").value);
+            };
+            config.Save();
+
+            config.GetValue<double>("targetTickTime").ForceUpdateValue();
+
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine("Initializing commands");
+            Console.ResetColor();
             Commands.Initialize();
 
-            NetPeerConfiguration config = new("mod.cgytrus.plugins.calOnline") {
-                Port = port,
-                EnableUPnP = true
-            };
+            peerConfig.Port = config.GetValue<int>("port").value;
+            peerConfig.EnableUPnP = config.GetValue<bool>("upnp").value;
 
-            config.DisableMessageType(NetIncomingMessageType.Receipt);
-            config.EnableMessageType(NetIncomingMessageType.ConnectionApproval);
-            config.DisableMessageType(NetIncomingMessageType.DebugMessage);
-            config.DisableMessageType(NetIncomingMessageType.DiscoveryRequest); // enable later
-            config.DisableMessageType(NetIncomingMessageType.DiscoveryResponse); // enable later
-            config.DisableMessageType(NetIncomingMessageType.UnconnectedData);
-            config.DisableMessageType(NetIncomingMessageType.ConnectionLatencyUpdated);
-            config.DisableMessageType(NetIncomingMessageType.NatIntroductionSuccess);
-            config.DisableMessageType(NetIncomingMessageType.VerboseDebugMessage);
+            peerConfig.DisableMessageType(NetIncomingMessageType.Receipt);
+            peerConfig.EnableMessageType(NetIncomingMessageType.ConnectionApproval);
+            peerConfig.DisableMessageType(NetIncomingMessageType.DebugMessage);
+            peerConfig.DisableMessageType(NetIncomingMessageType.DiscoveryRequest); // enable later
+            peerConfig.DisableMessageType(NetIncomingMessageType.DiscoveryResponse); // enable later
+            peerConfig.DisableMessageType(NetIncomingMessageType.UnconnectedData);
+            peerConfig.DisableMessageType(NetIncomingMessageType.ConnectionLatencyUpdated);
+            peerConfig.DisableMessageType(NetIncomingMessageType.NatIntroductionSuccess);
+            peerConfig.DisableMessageType(NetIncomingMessageType.VerboseDebugMessage);
 
-            _server = new NetServer(config);
+            _server = new NetServer(peerConfig);
 
-            string portStr = port.ToString(CultureInfo.InvariantCulture);
+            string port = config.GetValue<int>("port").value.ToString(CultureInfo.InvariantCulture);
+            string upnp = config.GetValue<bool>("upnp").value ? " (UPnP)" : "";
             Console.ForegroundColor = ConsoleColor.DarkGreen;
-            Console.WriteLine($"Starting server (v{Version}) on port {portStr}{(upnp ? " (UPnP)" : "")}");
+            Console.WriteLine($"Starting server (v{Version}) on port {port}{upnp}");
             Console.ResetColor();
             _server.Start();
 
-            // doesn't seem to work?
-            if(upnp) _server.UPnP.ForwardPort(port, "Cats are Liquid - A Better Place");
+            _server.UPnP?.ForwardPort(peerConfig.Port, "Cats are Liquid - A Better Place");
 
             while(_server.Status != NetPeerStatus.Running) { }
             _uptimeStopwatch = Stopwatch.StartNew();
@@ -110,7 +125,8 @@ namespace CatsAreOnlineServer {
             _uptimeStopwatch.Stop();
             Console.WriteLine("Stopping server...");
             _server.Shutdown("Server closed");
-            _server.UPnP.DeleteForwardingRule(_server.Port);
+            _server.UPnP?.DeleteForwardingRule(_server.Port);
+            config.Save();
         }
 
         private static void ServerThread() {
@@ -134,13 +150,15 @@ namespace CatsAreOnlineServer {
         }
 
         public static string ValidateRegisteringPlayer(string username, string displayName, Guid id) {
-            if(username.Length > MaxUsernameLength) {
-                string maxLength = MaxUsernameLength.ToString(CultureInfo.InvariantCulture);
+            int maxUsernameLength = config.GetValue<int>("maxUsernameLength").value;
+            if(username.Length > maxUsernameLength) {
+                string maxLength = maxUsernameLength.ToString(CultureInfo.InvariantCulture);
                 return $"Username too long (max length = {maxLength})";
             }
 
-            if(displayName.Length > MaxDisplayNameLength) {
-                string maxLength = MaxDisplayNameLength.ToString(CultureInfo.InvariantCulture);
+            int maxDisplayNameLength = config.GetValue<int>("maxDisplayNameLength").value;
+            if(displayName.Length > maxDisplayNameLength) {
+                string maxLength = maxDisplayNameLength.ToString(CultureInfo.InvariantCulture);
                 return $"Display name too long (max length = {maxLength})";
             }
 
