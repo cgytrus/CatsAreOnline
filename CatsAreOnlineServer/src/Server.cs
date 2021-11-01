@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Net;
+using System.Text.RegularExpressions;
 using System.Threading;
 
 using CatsAreOnline.Shared;
@@ -164,17 +165,6 @@ namespace CatsAreOnlineServer {
                 Console.ResetColor();
             }
 
-            Guid guid = Guid.NewGuid();
-            if(playerRegistry.ContainsKey(guid)) {
-                RegisterPlayerError("GUID already taken (what)");
-                return;
-            }
-
-            if(playerRegistry.Any(ply => ply.Value.username == username)) {
-                RegisterPlayerError("Username already taken");
-                return;
-            }
-
             if(username.Length > MaxUsernameLength) {
                 string maxLength = MaxUsernameLength.ToString(CultureInfo.InvariantCulture);
                 RegisterPlayerError($"Username too long (max length = {maxLength})");
@@ -184,6 +174,28 @@ namespace CatsAreOnlineServer {
             if(displayName.Length > MaxDisplayNameLength) {
                 string maxLength = MaxDisplayNameLength.ToString(CultureInfo.InvariantCulture);
                 RegisterPlayerError($"Display name too long (max length = {maxLength})");
+                return;
+            }
+
+            if(username.Length <= 0) {
+                RegisterPlayerError("Username empty");
+                return;
+            }
+
+            Regex alphanumRegex = new("^[a-zA-Z0-9]*$");
+            if(!alphanumRegex.IsMatch(username)) {
+                RegisterPlayerError("Username contains non-alphanumeric characters");
+                return;
+            }
+
+            Guid guid = Guid.NewGuid();
+            if(playerRegistry.ContainsKey(guid)) {
+                RegisterPlayerError("GUID already taken (what, you're lucky ig)");
+                return;
+            }
+
+            if(playerRegistry.Any(ply => ply.Value.username == username)) {
+                RegisterPlayerError("Username already taken");
                 return;
             }
 
@@ -232,7 +244,7 @@ namespace CatsAreOnlineServer {
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine(message.ReadString());
                     Console.ResetColor();
-                    Connected(message);
+                    ClientConnected(message);
                     break;
                 case NetConnectionStatus.Disconnected:
                     ClientDisconnected(message);
@@ -245,7 +257,7 @@ namespace CatsAreOnlineServer {
             }
         }
 
-        private static void Connected(NetIncomingMessage message) {
+        private static void ClientConnected(NetIncomingMessage message) {
             foreach((Guid _, Player player) in playerRegistry) {
                 if(player.connection != message.SenderConnection) continue;
                 NetOutgoingMessage notifyMessage = _server.CreateMessage();
