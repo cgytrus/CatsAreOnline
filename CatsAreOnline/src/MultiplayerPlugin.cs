@@ -103,7 +103,7 @@ namespace CatsAreOnline {
 
         private void SetupSettings() {
             Logger.LogInfo("Setting settings up");
-            
+
             connected.Value = false;
             connected.SettingChanged += (_, _) => {
                 if(!SetConnected(connected.Value)) connected.Value = false;

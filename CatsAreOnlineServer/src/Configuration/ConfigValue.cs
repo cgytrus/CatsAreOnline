@@ -6,7 +6,7 @@ namespace CatsAreOnlineServer.Configuration {
             get {
                 // the type may be wrong after c#->json->c# conversion so we fix it
                 if(boxedValue is not T)
-                    _boxedValue = System.Convert.ChangeType(boxedValue, typeof(T), CultureInfo.InvariantCulture);
+                    boxedValueBacking = System.Convert.ChangeType(boxedValue, typeof(T), CultureInfo.InvariantCulture);
                 return (T)boxedValue;
             }
             set => boxedValue = value;

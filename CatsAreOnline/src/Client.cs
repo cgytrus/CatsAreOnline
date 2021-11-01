@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 
 using BepInEx.Logging;
 
@@ -69,7 +70,9 @@ namespace CatsAreOnline {
         public ICollection<SyncedObject> syncedObjects => _syncedObjectRegistry.Values;
 
         private readonly ManualLogSource _logger;
-        
+
+        private IPEndPoint _lastConnection;
+
         private readonly Dictionary<string, Player> _playerRegistry = new();
         private readonly Dictionary<Guid, SyncedObject> _syncedObjectRegistry = new();
 
@@ -78,14 +81,14 @@ namespace CatsAreOnline {
         private string _guid;
 
         private readonly NetClient _client;
-        
+
         private bool _displayOwnCat;
         private bool _playerCollisions;
-        
+
         private Player _spectating;
         private bool _restoreFollowPlayerHead;
         private Transform _restoreFollowTarget;
-        
+
         private Camera _nameTagCamera;
 
         private Guid _waitingForSpawnGuid;
@@ -112,20 +115,21 @@ namespace CatsAreOnline {
                 { DataType.SyncedObjectChangedState, SyncedObjectChangedStateReceived },
                 { DataType.ChatMessage, ChatMessageReceived }
             };
-            
+
             catState.client = this;
-            
+
             _restoreFollowPlayerHead = FollowPlayer.followPlayerHead;
             _restoreFollowTarget = FollowPlayer.customFollowTarget;
-            
+
             NetPeerConfiguration config = new("mod.cgytrus.plugins.calOnline");
-            
-            config.DisableMessageType(NetIncomingMessageType.Receipt);
+
             config.EnableMessageType(NetIncomingMessageType.ConnectionApproval);
+            config.EnableMessageType(NetIncomingMessageType.UnconnectedData);
+
+            config.DisableMessageType(NetIncomingMessageType.Receipt);
             config.DisableMessageType(NetIncomingMessageType.DebugMessage);
             config.DisableMessageType(NetIncomingMessageType.DiscoveryRequest); // enable later
             config.DisableMessageType(NetIncomingMessageType.DiscoveryResponse); // enable later
-            config.DisableMessageType(NetIncomingMessageType.UnconnectedData);
             config.DisableMessageType(NetIncomingMessageType.ConnectionLatencyUpdated);
             config.DisableMessageType(NetIncomingMessageType.NatIntroductionSuccess);
             config.DisableMessageType(NetIncomingMessageType.VerboseDebugMessage);
@@ -326,6 +330,9 @@ namespace CatsAreOnline {
                 case NetIncomingMessageType.StatusChanged:
                     StatusChangedMessageReceived(message);
                     break;
+                case NetIncomingMessageType.UnconnectedData:
+                    UnconnectedDataMessageReceived(message);
+                    break;
                 case NetIncomingMessageType.Data:
                     DataMessageReceived(message);
                     break;
@@ -357,8 +364,9 @@ namespace CatsAreOnline {
             }
         }
         
-        private void Connected(NetBuffer hailMessage) {
+        private void Connected(NetIncomingMessage hailMessage) {
             _logger.LogInfo("Connected to the server");
+            _lastConnection = hailMessage.SenderEndPoint;
 
             _guid = hailMessage.ReadString();
 
@@ -412,12 +420,25 @@ namespace CatsAreOnline {
             Chat.Chat.AddMessage($"Disconnected from the server ({reason})");
         }
 
+        private void UnconnectedDataMessageReceived(NetIncomingMessage message) {
+            byte typeByte = message.ReadByte();
+            DataType type = (DataType)typeByte;
+            
+            if(type == DataType.RestartReconnect) RestartReconnectReceived(message);
+            else _logger.LogWarning($"[WARN] Unknown unconnected data message type received: {type.ToString()}");
+        }
+
+        private void RestartReconnectReceived(NetIncomingMessage message) {
+            if(!Equals(message.SenderEndPoint, _lastConnection)) return;
+            MultiplayerPlugin.connected.Value = true;
+        }
+
         private void DataMessageReceived(NetBuffer message) {
             byte typeByte = message.ReadByte();
             DataType type = (DataType)typeByte;
 
             if(_receivingDataMessages.TryGetValue(type, out Action<NetBuffer> action)) action(message);
-            else _logger.LogWarning($"[WARN] Unknown message type received: {type.ToString()}");
+            else _logger.LogWarning($"[WARN] Unknown data message type received: {type.ToString()}");
         }
 
         private void PlayerJoinedReceived(NetBuffer message) {

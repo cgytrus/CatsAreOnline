@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Text.RegularExpressions;
 using System.Threading;
 
@@ -17,27 +18,47 @@ using Lidgren.Network;
 namespace CatsAreOnlineServer {
     public static class Server {
         public const string Version = "0.5.0";
+        // ReSharper disable once MemberCanBePrivate.Global
         public static TimeSpan targetTickTime { get; private set; }
 
         public static IReadOnlyDictionary<Guid, Player> players => playerRegistry;
         public static TimeSpan uptime => _uptimeStopwatch.Elapsed;
 
-        public static Config config { get; } = new("config.json");
+        public static Config config { get; private set; }
+        // ReSharper disable once MemberCanBePrivate.Global
+        public static Commands commands { get; private set; }
+
+        private static readonly List<IPEndPoint> reconnectEndPoints = new();
 
         private static readonly Dictionary<Guid, Player> playerRegistry = new();
         private static readonly Dictionary<Guid, SyncedObject> syncedObjectRegistry = new();
 
+        private static bool _mainRunning = true;
+
         private static NetServer _server;
+        private static Thread _serverThread;
+        private static Thread _consoleThread;
         private static Stopwatch _uptimeStopwatch;
 
         private static MessageHandler _messageHandler;
 
-        public static void Main() {
+        private static void Main() {
+            while(_mainRunning) {
+                Initialize();
+                _consoleThread!.Join();
+                _consoleThread = null;
+                _server = null;
+            }
+        }
+
+        private static void Initialize() {
             NetPeerConfiguration peerConfig = new("mod.cgytrus.plugins.calOnline");
 
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine("Initializing config");
             Console.ResetColor();
+
+            config = new Config("config.json");
             config.Load();
             config.AddValue("port", new ConfigValue<int>(1337)).valueChanged += (_, _) => {
                 Console.ResetColor();
@@ -59,28 +80,31 @@ namespace CatsAreOnlineServer {
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine("Initializing commands");
             Console.ResetColor();
-            Commands.Initialize();
+
+            commands = new Commands();
 
             peerConfig.Port = config.GetValue<int>("port").value;
             peerConfig.EnableUPnP = config.GetValue<bool>("upnp").value;
 
-            peerConfig.DisableMessageType(NetIncomingMessageType.Receipt);
             peerConfig.EnableMessageType(NetIncomingMessageType.ConnectionApproval);
+            peerConfig.EnableMessageType(NetIncomingMessageType.UnconnectedData);
+
+            peerConfig.DisableMessageType(NetIncomingMessageType.Receipt);
             peerConfig.DisableMessageType(NetIncomingMessageType.DebugMessage);
             peerConfig.DisableMessageType(NetIncomingMessageType.DiscoveryRequest); // enable later
             peerConfig.DisableMessageType(NetIncomingMessageType.DiscoveryResponse); // enable later
-            peerConfig.DisableMessageType(NetIncomingMessageType.UnconnectedData);
             peerConfig.DisableMessageType(NetIncomingMessageType.ConnectionLatencyUpdated);
             peerConfig.DisableMessageType(NetIncomingMessageType.NatIntroductionSuccess);
             peerConfig.DisableMessageType(NetIncomingMessageType.VerboseDebugMessage);
 
             _server = new NetServer(peerConfig);
 
-            string port = config.GetValue<int>("port").value.ToString(CultureInfo.InvariantCulture);
-            string upnp = config.GetValue<bool>("upnp").value ? " (UPnP)" : "";
+            string port = peerConfig.Port.ToString(CultureInfo.InvariantCulture);
+            string upnp = peerConfig.EnableUPnP ? " (UPnP)" : "";
             Console.ForegroundColor = ConsoleColor.DarkGreen;
             Console.WriteLine($"Starting server (v{Version}) on port {port}{upnp}");
             Console.ResetColor();
+
             _server.Start();
 
             _server.UPnP?.ForwardPort(peerConfig.Port, "Cats are Liquid - A Better Place");
@@ -108,31 +132,18 @@ namespace CatsAreOnlineServer {
                 }
             };
 
-            Thread serverThread = new(ServerThread);
-            serverThread.Start();
-
-            while(_server.Status == NetPeerStatus.Running) {
-                string command = Console.ReadLine();
-                if(_server.Status != NetPeerStatus.Running) break;
-                ExecuteCommand(null, command);
-            }
-
-            try { serverThread.Join(); }
-            catch(Exception) { /* ignored */ }
-        }
-
-        public static void Stop() {
-            _uptimeStopwatch.Stop();
-            Console.WriteLine("Stopping server...");
-            _server.Shutdown("Server closed");
-            _server.UPnP?.DeleteForwardingRule(_server.Port);
-            config.Save();
+            _serverThread = new Thread(ServerThread);
+            _consoleThread = new Thread(ConsoleThread);
+            _serverThread.Start();
+            _consoleThread.Start();
         }
 
         private static void ServerThread() {
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine("Server thread started");
             Console.ResetColor();
+
+            TrySendReconnectMessage();
 
             Stopwatch tickStopwatch = Stopwatch.StartNew();
             while(_server.Status == NetPeerStatus.Running) {
@@ -147,6 +158,61 @@ namespace CatsAreOnlineServer {
                 TimeSpan timeout = targetTickTime - tickStopwatch.Elapsed;
                 if(timeout.Ticks > 0L) Thread.Sleep(timeout);
             }
+        }
+
+        private static void ConsoleThread() {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("Console thread started");
+            Console.ResetColor();
+
+            while(_server.Status == NetPeerStatus.Running) {
+                string command = Console.ReadLine();
+                if(_server.Status != NetPeerStatus.Running) break;
+                ExecuteCommand(null, command);
+            }
+        }
+
+        public static void Stop() {
+            _mainRunning = false;
+            Stop("Server closed");
+        }
+
+        public static void Restart() {
+            SendChatMessageToAll(null, "The server is being restarted, you are going to be reconnected automatically");
+            // ReSharper disable once HeapView.ObjectAllocation
+            reconnectEndPoints.AddRange(_server.Connections.Select(connection => connection.RemoteEndPoint));
+            Stop("Server restarting");
+        }
+
+        private static void Stop(string reason) {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine($"Stopping server ({reason})");
+            Console.ResetColor();
+
+            _uptimeStopwatch.Stop();
+            _uptimeStopwatch = null;
+
+            _server.Shutdown(reason);
+            _server.UPnP?.DeleteForwardingRule(_server.Port);
+            _serverThread.Join();
+            _messageHandler = null;
+            _serverThread = null;
+
+            config.Save();
+            config = null;
+
+            commands = null;
+
+            playerRegistry.Clear();
+            syncedObjectRegistry.Clear();
+        }
+
+        private static void TrySendReconnectMessage() {
+            if(reconnectEndPoints.Count <= 0) return;
+            NetOutgoingMessage message = _server.CreateMessage();
+            message.Write((byte)DataType.RestartReconnect);
+            _server.SendUnconnectedMessage(message, reconnectEndPoints);
+            reconnectEndPoints.Clear();
         }
 
         public static string ValidateRegisteringPlayer(string username, string displayName, Guid id) {
@@ -176,7 +242,7 @@ namespace CatsAreOnlineServer {
         }
 
         public static void ExecuteCommand(Player player, string command) {
-            try { Commands.dispatcher.Execute(command, player); }
+            try { commands.dispatcher.Execute(command, player); }
             catch(Exception ex) { SendChatMessage(null, player, ServerErrorMessage(ex.Message)); }
         }
 
@@ -209,7 +275,7 @@ namespace CatsAreOnlineServer {
         public static void LogPlayerAction(Player player, string action) =>
             LogPlayerAction(player.id.ToString(), player.username, action);
 
-        public static void LogPlayerAction(string id, string username, string action) {
+        private static void LogPlayerAction(string id, string username, string action) {
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine($"Player {username} ({id}) {action}");
             Console.ResetColor();

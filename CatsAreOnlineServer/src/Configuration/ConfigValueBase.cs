@@ -2,12 +2,12 @@
 
 namespace CatsAreOnlineServer.Configuration {
     public abstract class ConfigValueBase {
-        protected object _boxedValue;
+        protected object boxedValueBacking { get; set; }
 
         public object boxedValue {
-            get => _boxedValue;
+            get => boxedValueBacking;
             set {
-                _boxedValue = value;
+                boxedValueBacking = value;
                 ForceUpdateValue();
             }
         }

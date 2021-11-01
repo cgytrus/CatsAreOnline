@@ -12,14 +12,13 @@ using NBrigadier.Context;
 using NBrigadier.Tree;
 
 namespace CatsAreOnlineServer {
-    public static class Commands {
-        public static CommandDispatcher<Player> dispatcher { get; } = new();
+    public class Commands {
+        public CommandDispatcher<Player> dispatcher { get; } = new();
 
-        private static readonly Dictionary<CommandNode<Player>, string> descriptions = new();
+        private readonly Dictionary<CommandNode<Player>, string> _descriptions = new();
 
-        // ReSharper disable once ArrangeMethodOrOperatorBody
-        public static void Initialize() {
-            descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Player>.Literal("help")
+        public Commands() {
+            _descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Player>.Literal("help")
                 .Then(RequiredArgumentBuilder<Player, string>.Argument("command", StringArgumentType.Word())
                     .Executes(context => {
                         HelpCommand(StringArgumentType.GetString(context, "command"), context);
@@ -30,14 +29,21 @@ namespace CatsAreOnlineServer {
                     return 1;
                 })), "Prints this message.");
 
-            descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Player>.Literal("stop")
+            _descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Player>.Literal("stop")
                 .Executes(context => {
                     if(!CheckServerPlayer(context)) return 1;
                     Server.Stop();
                     return 1;
                 })), "Stops the server.");
 
-            descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Player>.Literal("info")
+            _descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Player>.Literal("restart")
+                .Executes(context => {
+                    if(!CheckServerPlayer(context)) return 1;
+                    Server.Restart();
+                    return 1;
+                })), "Restarts the server.");
+
+            _descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Player>.Literal("info")
                 .Executes(context => {
                     string commandCount = dispatcher.Root.Children.Count.ToString(CultureInfo.InvariantCulture);
                     string playerCount = Server.players.Count.ToString(CultureInfo.InvariantCulture);
@@ -53,7 +59,7 @@ namespace CatsAreOnlineServer {
                     return 1;
                 })), "Prints some info about the server.");
 
-            descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Player>.Literal("players")
+            _descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Player>.Literal("players")
                 .Then(RequiredArgumentBuilder<Player, bool>.Argument("printGuid", BoolArgumentType.Bool())
                     .Executes(context => {
                         PlayersCommand(BoolArgumentType.GetBool(context, "printGuid"), context);
@@ -64,7 +70,7 @@ namespace CatsAreOnlineServer {
                     return 1;
                 })), "Prints online players.");
 
-            descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Player>.Literal("locate")
+            _descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Player>.Literal("locate")
                 .Then(RequiredArgumentBuilder<Player, string>.Argument("username", StringArgumentType.String())
                     .Executes(context => {
                         LocateCommand(context, StringArgumentType.GetString(context, "username"));
@@ -75,7 +81,7 @@ namespace CatsAreOnlineServer {
                     return 1;
                 })), "Prints the location of a player.");
 
-            descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Player>.Literal("say")
+            _descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Player>.Literal("say")
                 .Then(RequiredArgumentBuilder<Player, string>.Argument("message", StringArgumentType.String())
                     .Executes(context => {
                         Server.SendChatMessageToAll(context.Source, StringArgumentType.GetString(context, "message"));
@@ -89,7 +95,7 @@ namespace CatsAreOnlineServer {
                             return 1;
                         })))), "Sends a message in the chat.");
             
-            descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Player>.Literal("config")
+            _descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Player>.Literal("config")
                 .Then(LiteralArgumentBuilder<Player>.Literal("get")
                     .Then(RequiredArgumentBuilder<Player, string>.Argument("key", StringArgumentType.Word())
                         .Executes(context => {
@@ -129,24 +135,23 @@ namespace CatsAreOnlineServer {
             Server.SendChatMessage(null, context.Source,
                 Server.ServerErrorMessage("Not enough permissions"));
             return false;
-
         }
 
-        private static void HelpCommand(CommandContext<Player> context) {
+        private void HelpCommand(CommandContext<Player> context) {
             IDictionary<CommandNode<Player>, string> usages = dispatcher.GetSmartUsage(dispatcher.Root, context.Source);
 
             foreach((CommandNode<Player> node, string usage) in usages)
-                Server.SendChatMessage(null, context.Source, descriptions.TryGetValue(node, out string description) ?
+                Server.SendChatMessage(null, context.Source, _descriptions.TryGetValue(node, out string description) ?
                     $"{node.Name} - {description} Usage: {usage}" :
                     $"{node.Name} {usage}");
         }
 
-        private static void HelpCommand(string command, CommandContext<Player> context) {
+        private void HelpCommand(string command, CommandContext<Player> context) {
             CommandNode<Player> node = dispatcher.FindNode(new string[] { command });
             IDictionary<CommandNode<Player>, string> usages = dispatcher.GetSmartUsage(node, context.Source);
 
             foreach((CommandNode<Player> _, string usage) in usages)
-                Server.SendChatMessage(null, context.Source, descriptions.TryGetValue(node, out string description) ?
+                Server.SendChatMessage(null, context.Source, _descriptions.TryGetValue(node, out string description) ?
                     $"{command} - {description} Usage: {usage}" : $"{command} {usage}");
         }
 

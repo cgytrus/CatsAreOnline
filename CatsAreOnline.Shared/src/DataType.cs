@@ -1,5 +1,6 @@
 ﻿namespace CatsAreOnline.Shared {
     public enum DataType : byte {
+        RestartReconnect,
         PlayerJoined,
         PlayerLeft,
         PlayerChangedWorldPack,
