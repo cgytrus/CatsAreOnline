@@ -3,7 +3,7 @@ using CatsAreOnline.Shared.StateTypes;
 
 using Lidgren.Network;
 
-namespace CatsAreOnlineServer {
+namespace CatsAreOnlineServer.SyncedObjects {
     public class CatSyncedObject : SyncedObject {
         public override SyncedObjectType enumType => SyncedObjectType.Cat;
         

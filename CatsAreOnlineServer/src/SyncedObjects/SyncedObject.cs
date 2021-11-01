@@ -5,7 +5,7 @@ using CatsAreOnline.Shared.StateTypes;
 
 using Lidgren.Network;
 
-namespace CatsAreOnlineServer {
+namespace CatsAreOnlineServer.SyncedObjects {
     public abstract class SyncedObject {
         public abstract SyncedObjectType enumType { get; }
         
