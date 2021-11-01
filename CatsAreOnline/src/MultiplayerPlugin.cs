@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Globalization;
 using System.IO;
+using System.Net;
 using System.Reflection;
 
 using BepInEx;
@@ -15,6 +16,8 @@ using CatsAreOnline.SyncedObjects;
 
 using HarmonyLib;
 
+using Lidgren.Network;
+
 using Mono.Cecil.Cil;
 
 using MonoMod.Cil;
@@ -22,16 +25,6 @@ using MonoMod.Cil;
 using UnityEngine;
 
 namespace CatsAreOnline {
-    internal readonly struct ParsedIp {
-        public string ip { get; }
-        public int port { get; }
-
-        public ParsedIp(string ip, int port) {
-            this.ip = ip;
-            this.port = port;
-        }
-    }
-
     [BepInPlugin("mod.cgytrus.plugins.calOnline", "Cats are Online", "0.5.0")]
     [BepInDependency("mod.cgytrus.plugins.calapi", "0.2.1")]
     internal class MultiplayerPlugin : BaseUnityPlugin {
@@ -81,7 +74,7 @@ namespace CatsAreOnline {
             _username = Config.Bind("General", "Username", "", "Your internal name");
             _displayName = Config.Bind("General", "Display Name", "",
                 "Your name that will be displayed to other players");
-            _address = Config.Bind("General", "Address", "127.0.0.1:1337", "");
+            _address = Config.Bind("General", "Address", "localhost:1337", "");
             _displayOwnCat = Config.Bind("General", "Display Own Cat", false, "");
             _interactions = Config.Bind("General", "Interactions", false, "[EXPERIMENTAL]");
             _toggleChat = Config.Bind("General", "Toggle Chat Button", new KeyboardShortcut(KeyCode.T), "");
@@ -293,8 +286,8 @@ namespace CatsAreOnline {
         private bool SetConnected(bool connected) {
             if(connected) {
                 if(!_client.canConnect) return false;
-                ParsedIp ip = ParseIp(_address.Value);
-                _client.Connect(ip.ip, ip.port, _username.Value, _displayName.Value);
+                IPEndPoint ip = ParseIp(_address.Value);
+                _client.Connect(ip, _username.Value, _displayName.Value);
             }
             else _client.Disconnect();
 
@@ -323,9 +316,9 @@ namespace CatsAreOnline {
 
         private void OnApplicationQuit() => SetConnected(false);
 
-        private static ParsedIp ParseIp(string ip) {
+        private static IPEndPoint ParseIp(string ip) {
             string[] ipPort = ip.Split(':');
-            return new ParsedIp(ipPort[0], int.Parse(ipPort[1], CultureInfo.InvariantCulture));
+            return NetUtility.Resolve(ipPort[0], int.Parse(ipPort[1], CultureInfo.InvariantCulture));
         }
 
         public static string FindLocationPath(string worldPackGuid, string worldGuid, string roomGuid,

@@ -138,7 +138,7 @@ namespace CatsAreOnline {
             _client.Start();
         }
 
-        public void Connect(string ip, int port, string username, string displayName) {
+        public void Connect(IPEndPoint ip, string username, string displayName) {
             if(_client.ConnectionStatus == NetConnectionStatus.Connected) Disconnect();
 
             username = string.IsNullOrWhiteSpace(username) ? "<Unknown>" : username;
@@ -155,7 +155,7 @@ namespace CatsAreOnline {
 
             NetOutgoingMessage approval = _client.CreateMessage();
             ownPlayer.Write(approval);
-            _client.Connect(ip, port, approval);
+            _client.Connect(ip, approval);
         }
 
         public void Disconnect() {
