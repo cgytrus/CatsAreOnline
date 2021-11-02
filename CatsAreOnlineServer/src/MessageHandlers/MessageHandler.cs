@@ -20,9 +20,10 @@ namespace CatsAreOnlineServer.MessageHandlers {
             { NetIncomingMessageType.ConnectionApproval, ConnectionApprovalReceived },
             { NetIncomingMessageType.StatusChanged, StatusChangedReceived },
             { NetIncomingMessageType.Data, DataReceived },
+            { NetIncomingMessageType.ConnectionLatencyUpdated, ConnectionLatencyUpdatedReceived },
             { NetIncomingMessageType.VerboseDebugMessage, VerboseDebugMessageReceived },
             { NetIncomingMessageType.DebugMessage, DebugMessageReceived },
-            { NetIncomingMessageType.WarningMessage, WarningMessageReceived},
+            { NetIncomingMessageType.WarningMessage, WarningMessageReceived },
             { NetIncomingMessageType.Error, ErrorMessageReceived },
             { NetIncomingMessageType.ErrorMessage, ErrorMessageReceived }
         };
@@ -88,6 +89,14 @@ namespace CatsAreOnlineServer.MessageHandlers {
             statusChangedMessageHandler.MessageReceived(message);
 
         private void DataReceived(NetBuffer message) => dataMessageHandler.MessageReceived(message);
+
+        private void ConnectionLatencyUpdatedReceived(NetIncomingMessage message) {
+            // ReSharper disable once ForeachCanBePartlyConvertedToQueryUsingAnotherGetEnumerator
+            foreach((Guid _, Player player) in playerRegistry) {
+                if(player.connection != message.SenderConnection) continue;
+                player.latestPing = message.ReadFloat() / 2f;
+            }
+        }
 
         private static void VerboseDebugMessageReceived(NetBuffer message) {
             Console.ForegroundColor = ConsoleColor.DarkGray;

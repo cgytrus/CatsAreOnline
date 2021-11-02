@@ -5,6 +5,7 @@ using Lidgren.Network;
 namespace CatsAreOnlineServer {
     public class Player {
         public NetConnection connection { get; init; }
+        public float latestPing { get; set; }
         public Guid id { get; init; }
         public string username { get; init; }
         public string displayName { get; init; }

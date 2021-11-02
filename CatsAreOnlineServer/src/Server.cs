@@ -88,6 +88,7 @@ namespace CatsAreOnlineServer {
 
             peerConfig.EnableMessageType(NetIncomingMessageType.ConnectionApproval);
             peerConfig.EnableMessageType(NetIncomingMessageType.UnconnectedData);
+            peerConfig.EnableMessageType(NetIncomingMessageType.ConnectionLatencyUpdated);
 
 #if DEBUG
                 peerConfig.EnableMessageType(NetIncomingMessageType.DebugMessage);
@@ -100,7 +101,6 @@ namespace CatsAreOnlineServer {
             peerConfig.DisableMessageType(NetIncomingMessageType.Receipt);
             peerConfig.DisableMessageType(NetIncomingMessageType.DiscoveryRequest); // enable later
             peerConfig.DisableMessageType(NetIncomingMessageType.DiscoveryResponse); // enable later
-            peerConfig.DisableMessageType(NetIncomingMessageType.ConnectionLatencyUpdated);
             peerConfig.DisableMessageType(NetIncomingMessageType.NatIntroductionSuccess);
 
             _server = new NetServer(peerConfig);

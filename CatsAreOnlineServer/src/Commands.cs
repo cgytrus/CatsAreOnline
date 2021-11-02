@@ -47,15 +47,15 @@ namespace CatsAreOnlineServer {
                 .Executes(context => {
                     string commandCount = dispatcher.Root.Children.Count.ToString(CultureInfo.InvariantCulture);
                     string playerCount = Server.players.Count.ToString(CultureInfo.InvariantCulture);
-                    string uptime = Server.uptime.ToString("%d\\d\\ %h\\h\\ %m\\m\\ %s\\s", CultureInfo.InvariantCulture);
-                    string ping = TimeSpan.FromSeconds(context.Source?.connection.AverageRoundtripTime ?? 0f)
-                        .ToString("%f\\m\\s", CultureInfo.InvariantCulture);
+                    string uptime = Server.uptime.ToString("%d'd '%h'h '%m'm '%s's'", CultureInfo.InvariantCulture);
+                    string ping = ((long)TimeSpan.FromSeconds(context.Source?.latestPing ?? 0f).TotalMilliseconds)
+                        .ToString(CultureInfo.InvariantCulture);
 
                     Server.SendChatMessage(null, context.Source, $"<b>INFO:</b> v{Server.Version}");
                     Server.SendChatMessage(null, context.Source, $"- <b>{commandCount}</b> commands available");
                     Server.SendChatMessage(null, context.Source, $"- <b>{playerCount}</b> players online");
                     Server.SendChatMessage(null, context.Source, $"- Running for <b>{uptime}</b>");
-                    Server.SendChatMessage(null, context.Source, $"- Pinging <b>{ping}</b> to you");
+                    Server.SendChatMessage(null, context.Source, $"- Pinging <b>{ping}ms</b> to you");
                     return 1;
                 })), "Prints some info about the server.");
 
