@@ -320,6 +320,7 @@ namespace CatsAreOnline {
 
         private static IPEndPoint ParseIp(string ip) {
             string[] ipPort = ip.Split(':');
+            if(ipPort.Length == 7) Chat.Chat.AddMessage($"{ipPort[3]} (why)");
             return ipPort.Length <= 1 ? NetUtility.Resolve(ipPort[0], DefaultConfig.Port) :
                 NetUtility.Resolve(ipPort[0], int.Parse(ipPort[1], CultureInfo.InvariantCulture));
         }
