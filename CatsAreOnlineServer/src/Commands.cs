@@ -54,8 +54,8 @@ namespace CatsAreOnlineServer {
                     Server.SendChatMessage(null, context.Source, $"<b>INFO:</b> v{Server.Version}");
                     Server.SendChatMessage(null, context.Source, $"- <b>{commandCount}</b> commands available");
                     Server.SendChatMessage(null, context.Source, $"- <b>{playerCount}</b> players online");
-                    Server.SendChatMessage(null, context.Source, $"- Running for {uptime}");
-                    Server.SendChatMessage(null, context.Source, $"- Pinging {ping} to you");
+                    Server.SendChatMessage(null, context.Source, $"- Running for <b>{uptime}</b>");
+                    Server.SendChatMessage(null, context.Source, $"- Pinging <b>{ping}</b> to you");
                     return 1;
                 })), "Prints some info about the server.");
 
