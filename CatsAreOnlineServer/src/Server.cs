@@ -158,6 +158,8 @@ namespace CatsAreOnlineServer {
                 TimeSpan timeout = targetTickTime - tickStopwatch.Elapsed;
                 if(timeout.Ticks > 0L) Thread.Sleep(timeout);
             }
+
+            while(_server.Socket is not null) { }
         }
 
         private static void ConsoleThread() {
