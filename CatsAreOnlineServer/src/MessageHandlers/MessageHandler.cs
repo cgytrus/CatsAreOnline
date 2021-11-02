@@ -20,6 +20,8 @@ namespace CatsAreOnlineServer.MessageHandlers {
             { NetIncomingMessageType.ConnectionApproval, ConnectionApprovalReceived },
             { NetIncomingMessageType.StatusChanged, StatusChangedReceived },
             { NetIncomingMessageType.Data, DataReceived },
+            { NetIncomingMessageType.VerboseDebugMessage, VerboseDebugMessageReceived },
+            { NetIncomingMessageType.DebugMessage, DebugMessageReceived },
             { NetIncomingMessageType.WarningMessage, WarningMessageReceived},
             { NetIncomingMessageType.Error, ErrorMessageReceived },
             { NetIncomingMessageType.ErrorMessage, ErrorMessageReceived }
@@ -86,6 +88,18 @@ namespace CatsAreOnlineServer.MessageHandlers {
             statusChangedMessageHandler.MessageReceived(message);
 
         private void DataReceived(NetBuffer message) => dataMessageHandler.MessageReceived(message);
+
+        private static void VerboseDebugMessageReceived(NetBuffer message) {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine($"[VERBOSE DEBUG] {message.ReadString()}");
+            Console.ResetColor();
+        }
+
+        private static void DebugMessageReceived(NetBuffer message) {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine($"[DEBUG] {message.ReadString()}");
+            Console.ResetColor();
+        }
 
         private static void WarningMessageReceived(NetBuffer message) {
             Console.ForegroundColor = ConsoleColor.Yellow;
