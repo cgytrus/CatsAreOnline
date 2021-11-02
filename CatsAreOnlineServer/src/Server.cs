@@ -17,7 +17,11 @@ using Lidgren.Network;
 
 namespace CatsAreOnlineServer {
     public static class Server {
+#if DEBUG
+        public const string Version = "0.5.0-debug";
+#else
         public const string Version = "0.5.0";
+#endif
         // ReSharper disable once MemberCanBePrivate.Global
         public static TimeSpan targetTickTime { get; private set; }
 
