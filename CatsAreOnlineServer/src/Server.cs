@@ -64,7 +64,7 @@ namespace CatsAreOnlineServer {
 
             config = new Config("config.json");
             config.Load();
-            config.AddValue("port", new ConfigValue<int>(1337)).valueChanged += (_, _) => {
+            config.AddValue("port", new ConfigValue<int>(DefaultConfig.Port)).valueChanged += (_, _) => {
                 Console.ResetColor();
                 Console.WriteLine("Port was changed, this requires a server restart to take effect!");
             };

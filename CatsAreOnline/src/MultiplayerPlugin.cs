@@ -12,6 +12,7 @@ using CalApi.API.Cat;
 
 using Cat;
 
+using CatsAreOnline.Shared;
 using CatsAreOnline.SyncedObjects;
 
 using HarmonyLib;
@@ -74,7 +75,8 @@ namespace CatsAreOnline {
             _username = Config.Bind("General", "Username", "", "Your internal name");
             _displayName = Config.Bind("General", "Display Name", "",
                 "Your name that will be displayed to other players");
-            _address = Config.Bind("General", "Address", "localhost:1337", "");
+            _address = Config.Bind("General", "Address",
+                $"localhost:{DefaultConfig.Port.ToString(CultureInfo.InvariantCulture)}", "");
             _displayOwnCat = Config.Bind("General", "Display Own Cat", false, "");
             _interactions = Config.Bind("General", "Interactions", false, "[EXPERIMENTAL]");
             _toggleChat = Config.Bind("General", "Toggle Chat Button", new KeyboardShortcut(KeyCode.T), "");
@@ -318,7 +320,8 @@ namespace CatsAreOnline {
 
         private static IPEndPoint ParseIp(string ip) {
             string[] ipPort = ip.Split(':');
-            return NetUtility.Resolve(ipPort[0], int.Parse(ipPort[1], CultureInfo.InvariantCulture));
+            return ipPort.Length <= 1 ? NetUtility.Resolve(ipPort[0], DefaultConfig.Port) :
+                NetUtility.Resolve(ipPort[0], int.Parse(ipPort[1], CultureInfo.InvariantCulture));
         }
 
         public static string FindLocationPath(string worldPackGuid, string worldGuid, string roomGuid,
