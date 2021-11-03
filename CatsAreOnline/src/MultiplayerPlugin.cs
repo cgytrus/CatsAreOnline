@@ -75,8 +75,7 @@ namespace CatsAreOnline {
             _username = Config.Bind("General", "Username", "", "Your internal name");
             _displayName = Config.Bind("General", "Display Name", "",
                 "Your name that will be displayed to other players");
-            _address = Config.Bind("General", "Address",
-                $"localhost:{DefaultConfig.Port.ToString(CultureInfo.InvariantCulture)}", "");
+            _address = Config.Bind("General", "Address", "localhost", "");
             _displayOwnCat = Config.Bind("General", "Display Own Cat", false, "");
             _interactions = Config.Bind("General", "Interactions", false, "[EXPERIMENTAL]");
             _toggleChat = Config.Bind("General", "Toggle Chat Button", new KeyboardShortcut(KeyCode.T), "");
