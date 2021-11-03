@@ -39,8 +39,11 @@ namespace CatsAreOnline {
 
         public RectTransform nameTags { get; private set; }
 
-        public bool canConnect => CapturedData.catPartManager && CapturedData.catControls && CapturedData.catSprite &&
-                                  CapturedData.iceSprite && nameTags;
+        public bool canConnect => MultiplayerPlugin.capturedData.catPartManager &&
+                                  MultiplayerPlugin.capturedData.catControls &&
+                                  MultiplayerPlugin.capturedData.catSprite &&
+                                  MultiplayerPlugin.capturedData.iceSprite &&
+                                  nameTags;
 
         public Player ownPlayer { get; private set; } = new(null, null) { controlling = Guid.Empty };
         public CatSyncedObjectState catState { get; } = new();
@@ -89,10 +92,13 @@ namespace CatsAreOnline {
         private bool _waitingForSpawn;
         private bool _switchControllingAfterSpawn;
 
-        public Vector2 currentCatPosition => CapturedData.inJunction ? CapturedData.junctionPosition :
+        // yeah, idk how this works either
+        public Vector2 currentCatPosition => MultiplayerPlugin.capturedData.inJunction ?
+            MultiplayerPlugin.capturedData.junctionPosition :
             (FollowPlayer.customFollowTarget || Boiler.PlayerBoilerCounter > 0) && spectating == null ?
             (Vector2)FollowPlayer.LookAt.position :
-            CapturedData.catPartManager ? CapturedData.catPartManager.GetCatCenter() : Vector2.zero;
+            MultiplayerPlugin.capturedData.catPartManager ?
+                MultiplayerPlugin.capturedData.catPartManager.GetCatCenter() : Vector2.zero;
 
         public Client(ManualLogSource logger) {
             catState.client = this;

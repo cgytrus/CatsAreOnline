@@ -176,14 +176,14 @@ namespace CatsAreOnline {
                 return;
             }
 
-            CapturedData.catPartManager.MoveCat(context.Source.syncedObjectRegistry[player.controlling].transform
-                .position);
+            MultiplayerPlugin.capturedData.catPartManager.MoveCat(context.Source
+                .syncedObjectRegistry[player.controlling].transform.position);
             Chat.Chat.AddMessage(
                 $"Teleported <b>{context.Source.ownPlayer.displayName}</b> to <b>{player.displayName}</b>");
         }
 
         private static void TeleportCommand(CommandContext<Client> context, Vector2 position) {
-            CapturedData.catPartManager.MoveCat(position);
+            MultiplayerPlugin.capturedData.catPartManager.MoveCat(position);
             Chat.Chat.AddMessage(
                 $"Teleported <b>{context.Source.ownPlayer.displayName}</b> to <b>{position.ToString()}</b>");
         }

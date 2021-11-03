@@ -17,7 +17,7 @@ namespace CatsAreOnline.SyncedObjects {
 
         public void SetIce(bool ice) {
             ((CatSyncedObjectState)state).ice = ice;
-            renderer.sprite = ice ? CapturedData.iceSprite : CapturedData.catSprite;
+            renderer.sprite = ice ? MultiplayerPlugin.capturedData.iceSprite : MultiplayerPlugin.capturedData.catSprite;
             UpdateColliders();
             if(!ice) transform.eulerAngles = Vector3.zero;
         }

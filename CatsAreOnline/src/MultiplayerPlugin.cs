@@ -8,20 +8,13 @@ using BepInEx;
 using BepInEx.Configuration;
 
 using CalApi.API;
-using CalApi.API.Cat;
 
 using Cat;
 
 using CatsAreOnline.Shared;
 using CatsAreOnline.SyncedObjects;
 
-using HarmonyLib;
-
 using Lidgren.Network;
-
-using Mono.Cecil.Cil;
-
-using MonoMod.Cil;
 
 using UnityEngine;
 
@@ -29,7 +22,8 @@ namespace CatsAreOnline {
     [BepInPlugin("mod.cgytrus.plugins.calOnline", "Cats are Online", "0.5.1")]
     [BepInDependency("mod.cgytrus.plugins.calapi", "0.2.1")]
     internal class MultiplayerPlugin : BaseUnityPlugin {
-        public static ConfigEntry<bool> connected;
+        public static CapturedData capturedData { get; private set; }
+        public static ConfigEntry<bool> connected { get; private set; }
         private ConfigEntry<string> _username;
         private ConfigEntry<string> _displayName;
         private ConfigEntry<string> _address;
@@ -56,16 +50,14 @@ namespace CatsAreOnline {
             CreateSettings();
             Logger.LogInfo("Creating client");
             _client = new Client(Logger);
-            CapturedData.catState = Cat.State.Normal;
-            CapturedData.catScale = CapturedData.catState.GetScale();
             SetupSettings();
 
             Logger.LogInfo("Initializing commands");
             Commands.Initialize();
 
             ApplyHooks();
-            Logger.LogInfo("Applying patches");
-            Util.ApplyAllPatches();
+
+            capturedData = new CapturedData(Logger, _client);
         }
 
         private void CreateSettings() {
@@ -142,62 +134,14 @@ namespace CatsAreOnline {
         private void ApplyHooks() {
             Logger.LogInfo("Applying hooks");
 
-            FieldInfo noMetaballsPartTexture = AccessTools.Field(typeof(Cat.CatPartManager), "noMetaballsPartTexture");
-            On.Cat.CatPartManager.Awake += (orig, self) => {
-                orig(self);
-                if(!self.GetComponent<PlayerActor>()) return;
-
-                CapturedData.catSprite = (Sprite)noMetaballsPartTexture!.GetValue(self);
-                CapturedData.catPartManager = self;
-            };
-
             On.Cat.CatControls.Awake += (orig, self) => {
                 orig(self);
                 if(!self.GetComponent<PlayerActor>()) return;
-
-                FieldInfo normalStateConfiguration = AccessTools.Field(typeof(CatControls), "normalStateConfiguration");
-                FieldInfo stateConfigurationColor = AccessTools.Field(normalStateConfiguration.FieldType, "color");
-                CapturedData.catColor =
-                    (Color)stateConfigurationColor.GetValue(normalStateConfiguration.GetValue(self));
-
-                GameObject catIcePrefab =
-                    (GameObject)AccessTools.Field(typeof(Cat.CatControls), "catIcePrefab").GetValue(self);
-                SpriteRenderer catIceMainRenderer =
-                    (SpriteRenderer)AccessTools.Field(typeof(IceBlock), "mainSprite")
-                    .GetValue(catIcePrefab.GetComponent<IceBlock>());
-
-                CapturedData.iceSprite = catIceMainRenderer.sprite;
-                CapturedData.iceColor = catIceMainRenderer.color;
-                CapturedData.catControls = self;
 
                 SubscribeToCatControlsEvents(self);
             };
 
             SubscribeToLocationUpdates();
-
-            // ReSharper disable once SuggestBaseTypeForParameter
-            void ChangedColor(Cat.CatControls self, Color newColor) {
-                if(!self.GetComponent<PlayerActor>()) return;
-                CapturedData.catColor = newColor;
-            }
-
-            // MM HookGen can't hook properly cuz of the arg being an internal struct so we do il manually
-            IL.Cat.CatControls.ApplyConfiguration += il => {
-                ILCursor cursor = new(il);
-                cursor.GotoNext(code => code.MatchRet());
-                cursor.Emit(OpCodes.Ldarg_0);
-                cursor.Emit(OpCodes.Ldarg_0);
-                cursor.EmitDelegate<Func<Cat.CatControls, Color>>(CatControlsExtensions.GetCurrentConfigurationColor);
-                cursor.EmitDelegate<Action<Cat.CatControls, Color>>(ChangedColor);
-            };
-            /*On.Cat.CatControls.ApplyConfiguration += (orig, self, configuration) => {
-                orig(self, configuration);
-                ChangedColor(self, self.GetCurrentConfigurationColor());
-            };*/
-            On.Cat.CatControls.ApplyColor += (orig, self, color, featureColor) => {
-                orig(self, color, featureColor);
-                ChangedColor(self, color);
-            };
 
             UI.initialized += (_, _) => {
                 Chat.Chat.Initialize(_client);
@@ -247,11 +191,6 @@ namespace CatsAreOnline {
         }
 
         private void SubscribeToCatControlsEvents(CatControls controls) {
-            controls.StateSwitchAction += state => {
-                CapturedData.catState = (Cat.State)state;
-                CapturedData.catScale = CapturedData.catState.GetScale();
-            };
-
             controls.ControlTargetChangedAction += ControlTargetChanged;
             void ControlTargetChanged(CatControls.ControlTarget target) {
                 switch(target) {
@@ -264,24 +203,6 @@ namespace CatsAreOnline {
                         break;
                 }
             }
-
-            controls.CompanionToggeledAction += enabled => {
-                if(enabled) {
-                    Companion companion =
-                        (Companion)AccessTools.Field(typeof(Cat.CatControls), "companion").GetValue(controls);
-                    CapturedData.companionTransform = companion.transform;
-                    SpriteRenderer renderer = CapturedData.companionTransform.Find("Companion Sprite")
-                        .GetComponent<SpriteRenderer>();
-                    CapturedData.companionSprite = renderer.sprite;
-                    CapturedData.companionColor = renderer.color;
-
-                    _client.AddCompanion();
-                }
-                else {
-                    CapturedData.companionTransform = null;
-                    _client.RemoveCompanion();
-                }
-            };
         }
 
         private bool SetConnected(bool connected) {

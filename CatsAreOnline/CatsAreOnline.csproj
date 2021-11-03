@@ -45,11 +45,7 @@
         <Compile Include="src\MessageHandlers\StatusChangedMessageHandler.cs" />
         <Compile Include="src\MessageHandlers\UnconnectedDataMessageHandler.cs" />
         <Compile Include="src\NetBufferExtensions.cs" />
-        <Compile Include="src\Patches\CurrentIceUpdates.cs" />
-        <Compile Include="src\Patches\PipeColorUpdate.cs" />
         <Compile Include="src\MultiplayerPlugin.cs" />
-        <Compile Include="src\Patches\IceRotationUpdates.cs" />
-        <Compile Include="src\Patches\JunctionUpdates.cs" />
         <Compile Include="src\Player.cs" />
         <Compile Include="src\SyncedObjects\CatSyncedObject.cs" />
         <Compile Include="src\SyncedObjects\CatSyncedObjectState.cs" />

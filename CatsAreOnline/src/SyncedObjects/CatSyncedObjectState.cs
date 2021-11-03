@@ -36,20 +36,20 @@ namespace CatsAreOnline.SyncedObjects {
         public override void Update() {
             if(Pipe.catInPipe) {
                 scale = State.Liquid.GetScale();
-                color = CapturedData.catPipeColor;
+                color = MultiplayerPlugin.capturedData.catPipeColor;
             }
             else {
-                scale = CapturedData.catScale;
-                color = CapturedData.catColor;
+                scale = MultiplayerPlugin.capturedData.catScale;
+                color = MultiplayerPlugin.capturedData.catColor;
             }
-            movementCatState = CapturedData.catState;
+            movementCatState = MultiplayerPlugin.capturedData.catState;
             position = client.currentCatPosition;
-            if(!CapturedData.catControls) return;
-            ice = CapturedData.inIce;
+            if(!MultiplayerPlugin.capturedData.catControls) return;
+            ice = MultiplayerPlugin.capturedData.inIce;
             if(!ice) return;
-            color = CapturedData.iceColor;
-            scale = CapturedData.iceBlock.Size.y * 3.5f;
-            rotation = CapturedData.iceRotation;
+            color = MultiplayerPlugin.capturedData.iceColor;
+            scale = MultiplayerPlugin.capturedData.iceBlock.Size.y * 3.5f;
+            rotation = MultiplayerPlugin.capturedData.iceRotation;
         }
         
         public override void Write(NetBuffer message) {
