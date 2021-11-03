@@ -40,6 +40,10 @@
         <Compile Include="src\Chat\Message.cs" />
         <Compile Include="src\Client.cs" />
         <Compile Include="src\Commands.cs" />
+        <Compile Include="src\MessageHandlers\DataMessageHandler.cs" />
+        <Compile Include="src\MessageHandlers\MessageHandler.cs" />
+        <Compile Include="src\MessageHandlers\StatusChangedMessageHandler.cs" />
+        <Compile Include="src\MessageHandlers\UnconnectedDataMessageHandler.cs" />
         <Compile Include="src\NetBufferExtensions.cs" />
         <Compile Include="src\Patches\CurrentIceUpdates.cs" />
         <Compile Include="src\Patches\PipeColorUpdate.cs" />
