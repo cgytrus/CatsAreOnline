@@ -49,18 +49,17 @@ namespace CatsAreOnline.SyncedObjects {
         private void Awake() => _setPositionTime = Time.fixedDeltaTime;
 
         private void FixedUpdate() {
-            switch(interpolationSettings.mode) {
-                case InterpolationSettings.InterpolationMode.Lerp:
-                    renderer.transform.position = Vector3.Lerp(_fromPosition, state.position,
-                        (float)(_interpolateStopwatch.Elapsed.TotalSeconds /
-                                (_setPositionTime * interpolationSettings.time)));
-                    break;
-                case InterpolationSettings.InterpolationMode.LerpUnclamped:
-                    renderer.transform.position = Vector3.LerpUnclamped(_fromPosition, state.position,
-                        (float)(_interpolateStopwatch.Elapsed.TotalSeconds /
-                                (_setPositionTime * interpolationSettings.time)));
-                    break;
-            }
+            Transform rendererTransform = renderer.transform;
+            rendererTransform.position = interpolationSettings.mode switch {
+                InterpolationSettings.InterpolationMode.Lerp => Vector3.Lerp(_fromPosition, state.position,
+                    (float)(_interpolateStopwatch.Elapsed.TotalSeconds /
+                            (_setPositionTime * interpolationSettings.time))),
+                InterpolationSettings.InterpolationMode.LerpUnclamped => Vector3.LerpUnclamped(_fromPosition,
+                    state.position,
+                    (float)(_interpolateStopwatch.Elapsed.TotalSeconds /
+                            (_setPositionTime * interpolationSettings.time))),
+                _ => rendererTransform.position
+            };
         }
 
         public virtual void SetPosition(Vector2 position) {
