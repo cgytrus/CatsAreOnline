@@ -12,6 +12,7 @@ A multiplayer mod for [Cats are Liquid - A Better Place](https://store.steampowe
    however, keep in mind that username is the name that people use in commands, so if you use rich text in your username,
    it'll be hard if even possible to type, so don't use rich text in usernames please)
 6. Change the Address option to the address of the server you're connecting to
+   (thanks to [sbeve](https://github.com/svtetering), there's now an official server running at **cao.cgyt.ru**)
 7. Enable the Connected option
 8. Press T to chat, type /help in chat for a list of available commands
 
@@ -25,10 +26,11 @@ A multiplayer mod for [Cats are Liquid - A Better Place](https://store.steampowe
 2. Put the missing DLLs into CatsAreOnline/libs (for a more detailed explanation,
    follow the [Plugin development](https://docs.bepinex.dev/articles/dev_guide/plugin_tutorial/1_setup.html)
    guide on the BepInEx wiki starting from Gathering DLL dependencies)
-   
+
 ## TODO
 *Entries ending with a question mark is stuff i may or may not do later*
 - sync cat features (tail, face etc.)?
 - server list?
 - permission system?
+- show speedrun time of a player if they're speedrunning
 - fix a bug where the ice sprite doesn't go away sometimes???? huh??
