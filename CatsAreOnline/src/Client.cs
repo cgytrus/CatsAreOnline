@@ -78,8 +78,6 @@ namespace CatsAreOnline {
 
         private readonly IReadOnlyDictionary<DataType, Action<NetBuffer>> _receivingDataMessages;
 
-        private string _guid;
-
         private readonly NetClient _client;
 
         private bool _displayOwnCat;
@@ -206,7 +204,6 @@ namespace CatsAreOnline {
             
             NetOutgoingMessage message = _client.CreateMessage();
             message.Write((byte)DataType.ChatMessage);
-            message.Write(_guid);
             message.Write(text);
             SendMessageToServer(message, DeliveryMethods.Reliable);
         }
@@ -219,7 +216,6 @@ namespace CatsAreOnline {
             
             NetOutgoingMessage message = _client.CreateMessage();
             message.Write((byte)DataType.Command);
-            message.Write(_guid);
             message.Write(command);
             SendMessageToServer(message, DeliveryMethods.Reliable);
         }
@@ -368,8 +364,6 @@ namespace CatsAreOnline {
             _logger.LogInfo("Connected to the server");
             _lastConnection = hailMessage.SenderEndPoint;
 
-            _guid = hailMessage.ReadString();
-
             int playerCount = hailMessage.ReadInt32();
             for(int i = 0; i < playerCount; i++) {
                 Player player = new(hailMessage.ReadString(), hailMessage.ReadString()) {
@@ -412,7 +406,6 @@ namespace CatsAreOnline {
         private void Disconnected(string reason) {
             _logger.LogInfo("Disconnected from the server");
             MultiplayerPlugin.connected.Value = false;
-            _guid = null;
             foreach(KeyValuePair<Guid, SyncedObject> syncedObject in _syncedObjectRegistry)
                 syncedObject.Value.Remove();
             _syncedObjectRegistry.Clear();
@@ -590,7 +583,6 @@ namespace CatsAreOnline {
         private NetOutgoingMessage PrepareMessage(DataType type) {
             NetOutgoingMessage message = _client.CreateMessage();
             message.Write((byte)type);
-            message.Write(_guid);
             return message;
         }
 

@@ -11,7 +11,7 @@ using Lidgren.Network;
 namespace CatsAreOnlineServer.MessageHandlers {
     public class StatusChangedMessageHandler {
         public NetServer server { private get; init; }
-        public Dictionary<Guid, Player> playerRegistry { private get; init; }
+        public Dictionary<NetConnection, Player> playerRegistry { private get; init; }
         public Dictionary<Guid, SyncedObject> syncedObjectRegistry { private get; init; }
 
         private readonly IReadOnlyDictionary<NetConnectionStatus, Action<NetIncomingMessage>> _messages;
@@ -53,7 +53,7 @@ namespace CatsAreOnlineServer.MessageHandlers {
             Console.WriteLine(message.ReadString());
             Console.ResetColor();
 
-            foreach((Guid _, Player player) in playerRegistry) {
+            foreach((NetConnection _, Player player) in playerRegistry) {
                 if(player.connection != message.SenderConnection) continue;
                 NetOutgoingMessage notifyMessage = server.CreateMessage();
                 notifyMessage.Write((byte)DataType.PlayerJoined);
@@ -63,7 +63,8 @@ namespace CatsAreOnlineServer.MessageHandlers {
         }
 
         private void DisconnectedReceived(NetBuffer message) {
-            foreach((Guid id, Player player) in new Dictionary<Guid, Player>(playerRegistry)) {
+            foreach((NetConnection connection, Player player) in
+                new Dictionary<NetConnection, Player>(playerRegistry)) {
                 if(player.connection.Status == NetConnectionStatus.Connected) continue;
 
                 string username = player.username;
@@ -80,7 +81,7 @@ namespace CatsAreOnlineServer.MessageHandlers {
                                        where syncedObject.Value.owner.username == player.username
                                        select syncedObject.Key).ToList();
                 foreach(Guid objId in toRemove) syncedObjectRegistry.Remove(objId);                
-                playerRegistry.Remove(id);
+                playerRegistry.Remove(connection);
             }
         }
     }

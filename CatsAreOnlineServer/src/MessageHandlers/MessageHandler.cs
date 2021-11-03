@@ -9,7 +9,7 @@ using Lidgren.Network;
 namespace CatsAreOnlineServer.MessageHandlers {
     public class MessageHandler {
         public NetServer server { private get; init; }
-        public Dictionary<Guid, Player> playerRegistry { private get; init; }
+        public Dictionary<NetConnection, Player> playerRegistry { private get; init; }
         public Dictionary<Guid, SyncedObject> syncedObjectRegistry { private get; init; }
         public StatusChangedMessageHandler statusChangedMessageHandler { private get; init; }
         public DataMessageHandler dataMessageHandler { private get; init; }
@@ -46,9 +46,7 @@ namespace CatsAreOnlineServer.MessageHandlers {
             Console.WriteLine($"Registering player {username} @ {ip}");
             Console.ResetColor();
 
-            Guid guid = Guid.NewGuid();
-
-            string error = Server.ValidateRegisteringPlayer(username, displayName, guid);
+            string error = Server.ValidateRegisteringPlayer(username, displayName);
             if(error is not null) {
                 message.SenderConnection.Deny(error);
                 Console.ForegroundColor = ConsoleColor.Red;
@@ -59,7 +57,6 @@ namespace CatsAreOnlineServer.MessageHandlers {
 
             Player player = new() {
                 connection = message.SenderConnection,
-                id = guid,
                 username = username,
                 displayName = displayName,
                 worldPackGuid = message.ReadString(),
@@ -70,29 +67,28 @@ namespace CatsAreOnlineServer.MessageHandlers {
                 roomName = message.ReadString(),
                 controlling = Guid.Parse(message.ReadString())
             };
-            playerRegistry.Add(guid, player);
+            playerRegistry.Add(player.connection, player);
 
-            NetOutgoingMessage secretMessage = server.CreateMessage();
-            secretMessage.Write(guid.ToString());
-            secretMessage.Write(playerRegistry.Count - 1);
-            foreach((Guid regGuid, Player regPlayer) in playerRegistry) {
-                if(regGuid == guid) continue;
-                regPlayer.Write(secretMessage);
+            NetOutgoingMessage hail = server.CreateMessage();
+            hail.Write(playerRegistry.Count - 1);
+            foreach((NetConnection regCon, Player regPlayer) in playerRegistry) {
+                if(regCon == player.connection) continue;
+                regPlayer.Write(hail);
             }
-            secretMessage.Write(syncedObjectRegistry.Count);
-            foreach((Guid _, SyncedObject syncedObject) in syncedObjectRegistry) syncedObject.Write(secretMessage);
+            hail.Write(syncedObjectRegistry.Count);
+            foreach((Guid _, SyncedObject syncedObject) in syncedObjectRegistry) syncedObject.Write(hail);
 
-            message.SenderConnection.Approve(secretMessage);
+            message.SenderConnection.Approve(hail);
         }
 
         private void StatusChangedReceived(NetIncomingMessage message) =>
             statusChangedMessageHandler.MessageReceived(message);
 
-        private void DataReceived(NetBuffer message) => dataMessageHandler.MessageReceived(message);
+        private void DataReceived(NetIncomingMessage message) => dataMessageHandler.MessageReceived(message);
 
         private void ConnectionLatencyUpdatedReceived(NetIncomingMessage message) {
             // ReSharper disable once ForeachCanBePartlyConvertedToQueryUsingAnotherGetEnumerator
-            foreach((Guid _, Player player) in playerRegistry) {
+            foreach((NetConnection _, Player player) in playerRegistry) {
                 if(player.connection != message.SenderConnection) continue;
                 player.latestPing = message.ReadFloat() / 2f;
             }

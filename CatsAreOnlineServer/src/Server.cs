@@ -25,7 +25,7 @@ namespace CatsAreOnlineServer {
         // ReSharper disable once MemberCanBePrivate.Global
         public static TimeSpan targetTickTime { get; private set; }
 
-        public static IReadOnlyDictionary<Guid, Player> players => playerRegistry;
+        public static IReadOnlyDictionary<NetConnection, Player> players => playerRegistry;
         public static TimeSpan uptime => _uptimeStopwatch.Elapsed;
 
         public static Config config { get; private set; }
@@ -34,7 +34,7 @@ namespace CatsAreOnlineServer {
 
         private static readonly List<IPEndPoint> reconnectEndPoints = new();
 
-        private static readonly Dictionary<Guid, Player> playerRegistry = new();
+        private static readonly Dictionary<NetConnection, Player> playerRegistry = new();
         private static readonly Dictionary<Guid, SyncedObject> syncedObjectRegistry = new();
 
         private static bool _mainRunning = true;
@@ -227,7 +227,7 @@ namespace CatsAreOnlineServer {
             reconnectEndPoints.Clear();
         }
 
-        public static string ValidateRegisteringPlayer(string username, string displayName, Guid id) {
+        public static string ValidateRegisteringPlayer(string username, string displayName) {
             int maxUsernameLength = config.GetValue<int>("maxUsernameLength").value;
             if(username.Length > maxUsernameLength) {
                 string maxLength = maxUsernameLength.ToString(CultureInfo.InvariantCulture);
@@ -244,8 +244,6 @@ namespace CatsAreOnlineServer {
 
             Regex alphanumRegex = new("^[a-zA-Z0-9]*$");
             if(!alphanumRegex.IsMatch(username)) return "Username contains non-alphanumeric characters";
-
-            if(playerRegistry.ContainsKey(id)) return "GUID already taken (what, you're lucky ig)";
 
             // ReSharper disable once ConvertIfStatementToReturnStatement
             if(playerRegistry.Any(ply => ply.Value.username == username)) return "Username already taken";
@@ -280,16 +278,15 @@ namespace CatsAreOnlineServer {
         public static string ServerWarningMessage(string message) => $"<color=yellow><b>WARN:</b> {message}</color>";
         public static string ServerErrorMessage(string message) => $"<color=red><b>ERROR:</b> {message}</color>";
 
-        public static (Player player, bool registered) GetClientData(NetBuffer message) =>
-            Guid.TryParse(message.ReadString(), out Guid guid) && playerRegistry.TryGetValue(guid, out Player player) ?
-                (player, true) : (null, false);
+        public static Player GetPlayer(NetIncomingMessage message) =>
+            playerRegistry.TryGetValue(message.SenderConnection, out Player player) ? player : null;
 
         public static void LogPlayerAction(Player player, string action) =>
-            LogPlayerAction(player.id.ToString(), player.username, action);
+            LogPlayerAction(player.username, action);
 
-        private static void LogPlayerAction(string id, string username, string action) {
+        private static void LogPlayerAction(string username, string action) {
             Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine($"Player {username} ({id}) {action}");
+            Console.WriteLine($"Player {username} {action}");
             Console.ResetColor();
         }
     }

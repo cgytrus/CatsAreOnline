@@ -5,6 +5,8 @@ using System.Linq;
 
 using CatsAreOnlineServer.Configuration;
 
+using Lidgren.Network;
+
 using NBrigadier;
 using NBrigadier.Arguments;
 using NBrigadier.Builder;
@@ -60,9 +62,9 @@ namespace CatsAreOnlineServer {
                 })), "Prints some info about the server.");
 
             _descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Player>.Literal("players")
-                .Then(RequiredArgumentBuilder<Player, bool>.Argument("printGuid", BoolArgumentType.Bool())
+                .Then(RequiredArgumentBuilder<Player, bool>.Argument("printIp", BoolArgumentType.Bool())
                     .Executes(context => {
-                        PlayersCommand(BoolArgumentType.GetBool(context, "printGuid"), context);
+                        PlayersCommand(BoolArgumentType.GetBool(context, "printIp"), context);
                         return 1;
                     }))
                 .Executes(context => {
@@ -155,12 +157,12 @@ namespace CatsAreOnlineServer {
                     $"{command} - {description} Usage: {usage}" : $"{command} {usage}");
         }
 
-        private static void PlayersCommand(bool printGuid, CommandContext<Player> context) {
+        private static void PlayersCommand(bool printIp, CommandContext<Player> context) {
             if(!CheckServerPlayer(context)) return;
 
-            foreach((Guid guid, Player player) in Server.players) {
+            foreach((NetConnection connection, Player player) in Server.players) {
                 string displayName = $"{player.username} ";
-                string username = printGuid ? $"({guid.ToString()}) " : "";
+                string username = printIp ? $"({connection.RemoteEndPoint}) " : "";
                 string room = player.IsPlaying() ?
                     $": {player.worldPackName} - {player.worldName} - {player.roomName}" : "";
 

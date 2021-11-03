@@ -11,14 +11,14 @@ using Lidgren.Network;
 namespace CatsAreOnlineServer.MessageHandlers {
     public class DataMessageHandler {
         public NetServer server { private get; init; }
-        public Dictionary<Guid, Player> playerRegistry { private get; init; }
+        public Dictionary<NetConnection, Player> playerRegistry { private get; init; }
         public Dictionary<Guid, SyncedObject> syncedObjectRegistry { private get; init; }
 
-        private readonly IReadOnlyDictionary<DataType, Action<NetBuffer>> _messages;
+        private readonly IReadOnlyDictionary<DataType, Action<NetIncomingMessage>> _messages;
 
         private static readonly List<NetConnection> tempConnections = new();
 
-        public DataMessageHandler() => _messages = new Dictionary<DataType, Action<NetBuffer>> {
+        public DataMessageHandler() => _messages = new Dictionary<DataType, Action<NetIncomingMessage>> {
             { DataType.PlayerChangedWorldPack, PlayerChangedWorldPackReceived },
             { DataType.PlayerChangedWorld, PlayerChangedWorldReceived },
             { DataType.PlayerChangedRoom, PlayerChangedRoomReceived },
@@ -30,10 +30,10 @@ namespace CatsAreOnlineServer.MessageHandlers {
             { DataType.Command, CommandReceived }
         };
 
-        public void MessageReceived(NetBuffer message) {
+        public void MessageReceived(NetIncomingMessage message) {
             DataType type = (DataType)message.ReadByte();
 
-            if(_messages.TryGetValue(type, out Action<NetBuffer> action)) action(message);
+            if(_messages.TryGetValue(type, out Action<NetIncomingMessage> action)) action(message);
             else {
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine($"[WARN] Unknown message type received ({type.ToString()})");
@@ -41,9 +41,9 @@ namespace CatsAreOnlineServer.MessageHandlers {
             }
         }
 
-        private void PlayerChangedWorldPackReceived(NetBuffer message) {
-            (Player player, bool registered) = Server.GetClientData(message);
-            if(!registered) return;
+        private void PlayerChangedWorldPackReceived(NetIncomingMessage message) {
+            Player player = Server.GetPlayer(message);
+            if(player is null) return;
 
             string worldPackGuid = message.ReadString();
             string worldPackName = message.ReadString();
@@ -68,9 +68,9 @@ namespace CatsAreOnlineServer.MessageHandlers {
             server.SendToAll(notifyMessage, DeliveryMethods.Reliable);
         }
 
-        private void PlayerChangedWorldReceived(NetBuffer message) {
-            (Player player, bool registered) = Server.GetClientData(message);
-            if(!registered) return;
+        private void PlayerChangedWorldReceived(NetIncomingMessage message) {
+            Player player = Server.GetPlayer(message);
+            if(player is null) return;
 
             string worldGuid = message.ReadString();
             string worldName = message.ReadString();
@@ -95,9 +95,9 @@ namespace CatsAreOnlineServer.MessageHandlers {
             server.SendToAll(notifyMessage, DeliveryMethods.Reliable);
         }
 
-        private void PlayerChangedRoomReceived(NetBuffer message) {
-            (Player player, bool registered) = Server.GetClientData(message);
-            if(!registered) return;
+        private void PlayerChangedRoomReceived(NetIncomingMessage message) {
+            Player player = Server.GetPlayer(message);
+            if(player is null) return;
 
             string roomGuid = message.ReadString();
             string roomName = message.ReadString();
@@ -122,9 +122,9 @@ namespace CatsAreOnlineServer.MessageHandlers {
             server.SendToAll(notifyMessage, DeliveryMethods.Reliable);
         }
 
-        private void PlayerChangedControllingObjectReceived(NetBuffer message) {
-            (Player player, bool registered) = Server.GetClientData(message);
-            if(!registered) return;
+        private void PlayerChangedControllingObjectReceived(NetIncomingMessage message) {
+            Player player = Server.GetPlayer(message);
+            if(player is null) return;
 
             player.controlling = Guid.Parse(message.ReadString());
 
@@ -135,9 +135,9 @@ namespace CatsAreOnlineServer.MessageHandlers {
             server.SendToAll(notifyMessage, DeliveryMethods.Reliable);
         }
 
-        private void SyncedObjectAddedReceived(NetBuffer message) {
-            (Player player, bool registered) = Server.GetClientData(message);
-            if(!registered) return;
+        private void SyncedObjectAddedReceived(NetIncomingMessage message) {
+            Player player = Server.GetPlayer(message);
+            if(player is null) return;
 
             SyncedObjectType type = (SyncedObjectType)message.ReadByte();
             Guid id = Guid.Parse(message.ReadString());
@@ -150,9 +150,9 @@ namespace CatsAreOnlineServer.MessageHandlers {
             server.SendToAll(notifyMessage, DeliveryMethods.Reliable);
         }
 
-        private void SyncedObjectRemovedReceived(NetBuffer message) {
-            (Player player, bool registered) = Server.GetClientData(message);
-            if(!registered) return;
+        private void SyncedObjectRemovedReceived(NetIncomingMessage message) {
+            Player player = Server.GetPlayer(message);
+            if(player is null) return;
 
             Guid id = Guid.Parse(message.ReadString());
             if(!syncedObjectRegistry.TryGetValue(id, out SyncedObject syncedObject)) return;
@@ -166,9 +166,9 @@ namespace CatsAreOnlineServer.MessageHandlers {
             server.SendToAll(notifyMessage, DeliveryMethods.Reliable);
         }
 
-        private void SyncedObjectChangedStateReceived(NetBuffer message) {
-            (Player player, bool registered) = Server.GetClientData(message);
-            if(!registered) return;
+        private void SyncedObjectChangedStateReceived(NetIncomingMessage message) {
+            Player player = Server.GetPlayer(message);
+            if(player is null) return;
 
             Guid id = Guid.Parse(message.ReadString());
             if(!syncedObjectRegistry.TryGetValue(id, out SyncedObject syncedObject)) return;
@@ -191,9 +191,9 @@ namespace CatsAreOnlineServer.MessageHandlers {
             SendToAllInCurrentRoom(player, notifyMessage, deliveryMethod);
         }
 
-        private void ChatMessageReceived(NetBuffer message) {
-            (Player player, bool registered) = Server.GetClientData(message);
-            if(!registered) return;
+        private void ChatMessageReceived(NetIncomingMessage message) {
+            Player player = Server.GetPlayer(message);
+            if(player is null) return;
 
             string text = message.ReadString();
 
@@ -207,9 +207,9 @@ namespace CatsAreOnlineServer.MessageHandlers {
                 DeliveryMethods.Reliable, 0);
         }
 
-        private static void CommandReceived(NetBuffer message) {
-            (Player player, bool registered) = Server.GetClientData(message);
-            if(!registered) return;
+        private static void CommandReceived(NetIncomingMessage message) {
+            Player player = Server.GetPlayer(message);
+            if(player is null) return;
 
             string command = message.ReadString();
             Console.ForegroundColor = ConsoleColor.Cyan;
@@ -221,7 +221,7 @@ namespace CatsAreOnlineServer.MessageHandlers {
         private void SendToAllInCurrentRoom(Player fromPlayer, NetOutgoingMessage message, NetDeliveryMethod method) {
             tempConnections.Clear();
             // ReSharper disable once ForeachCanBePartlyConvertedToQueryUsingAnotherGetEnumerator
-            foreach((Guid _, Player player) in playerRegistry) {
+            foreach((NetConnection _, Player player) in playerRegistry) {
                 if(!player.LocationEqual(fromPlayer)) continue;
                 tempConnections.Add(player.connection);
             }
