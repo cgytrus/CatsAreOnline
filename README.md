@@ -12,7 +12,7 @@ A multiplayer mod for [Cats are Liquid - A Better Place](https://store.steampowe
    however, keep in mind that username is the name that people use in commands, so if you use rich text in your username,
    it'll be hard if even possible to type, so don't use rich text in usernames please)
 6. Change the Address option to the address of the server you're connecting to
-   (thanks to [sbeve](https://github.com/svtetering), there's now an official server running at **cao.cgyt.ru**)
+   (thanks to [sbeve](https://github.com/svtetering), there's now an official server running at **`cao.cgyt.ru`**)
 7. Enable the Connected option
 8. Press T to chat, type /help in chat for a list of available commands
 
