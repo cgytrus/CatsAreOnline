@@ -2,8 +2,8 @@
 [*]
 charset=utf-8
 end_of_line=crlf
-trim_trailing_whitespace=false
-insert_final_newline=false
+trim_trailing_whitespace=true
+insert_final_newline=true
 indent_style=space
 indent_size=4
 
@@ -37,6 +37,9 @@ dotnet_naming_rule.public_fields_rule.symbols=public_fields_symbols
 dotnet_naming_rule.static_readonly_rule.severity=warning
 dotnet_naming_rule.static_readonly_rule.style=lower_camel_case_style
 dotnet_naming_rule.static_readonly_rule.symbols=static_readonly_symbols
+dotnet_naming_rule.unity_serialized_field_rule.severity = warning
+dotnet_naming_rule.unity_serialized_field_rule.style = lower_camel_case_style
+dotnet_naming_rule.unity_serialized_field_rule.symbols = unity_serialized_field_symbols
 dotnet_naming_style.lower_camel_case_style.capitalization=camel_case
 dotnet_naming_style.upper_camel_case_style.capitalization=pascal_case
 dotnet_naming_symbols.constants_symbols.applicable_accessibilities=public,internal,protected,protected_internal,private_protected
@@ -57,9 +60,12 @@ dotnet_naming_symbols.public_fields_symbols.applicable_kinds=field
 dotnet_naming_symbols.static_readonly_symbols.applicable_accessibilities=public,internal,protected,protected_internal,private_protected
 dotnet_naming_symbols.static_readonly_symbols.applicable_kinds=field
 dotnet_naming_symbols.static_readonly_symbols.required_modifiers=static,readonly
-dotnet_style_parentheses_in_arithmetic_binary_operators=never_if_unnecessary:none
-dotnet_style_parentheses_in_other_binary_operators=never_if_unnecessary:none
-dotnet_style_parentheses_in_relational_binary_operators=never_if_unnecessary:none
+dotnet_naming_symbols.unity_serialized_field_symbols.applicable_accessibilities = *
+dotnet_naming_symbols.unity_serialized_field_symbols.applicable_kinds =
+dotnet_separate_import_directive_groups = true
+dotnet_style_parentheses_in_arithmetic_binary_operators=never_if_unnecessary:warning
+dotnet_style_parentheses_in_other_binary_operators=never_if_unnecessary:warning
+dotnet_style_parentheses_in_relational_binary_operators=never_if_unnecessary:warning
 dotnet_style_predefined_type_for_locals_parameters_members=true:suggestion
 dotnet_style_predefined_type_for_member_access=true:suggestion
 dotnet_style_qualification_for_event=false:suggestion
@@ -96,7 +102,8 @@ resharper_max_formal_parameters_on_line=6
 resharper_method_or_operator_body=expression_body
 resharper_nested_ternary_style=compact
 resharper_new_line_before_while=true
-resharper_parentheses_non_obvious_operations=none
+resharper_parentheses_non_obvious_operations=conditional, bitwise, shift, multiplicative
+resharper_parentheses_group_non_obvious_operations=conditional, arithmetic
 resharper_place_attribute_on_same_line=false
 resharper_place_expr_accessor_on_single_line=true
 resharper_place_expr_method_on_single_line=true
@@ -152,16 +159,3 @@ resharper_use_deconstruction_highlighting=warning
 resharper_web_config_module_not_resolved_highlighting=warning
 resharper_web_config_type_not_resolved_highlighting=warning
 resharper_web_config_wrong_module_highlighting=warning
-
-[{*.har,*.inputactions,*.json}]
-indent_style=space
-indent_size=4
-
-[{*.yaml,*.yml}]
-indent_style=space
-indent_size=4
-
-[*.{appxmanifest,asax,ascx,aspx,build,cg,cginc,compute,cs,cshtml,dtd,hlsl,hlsli,hlslinc,master,nuspec,razor,resw,resx,shader,skin,usf,ush,vb,xaml,xamlx,xoml,xsd}]
-indent_style=space
-indent_size=4
-tab_width=4
