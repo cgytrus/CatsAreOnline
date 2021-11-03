@@ -8,7 +8,7 @@ using Lidgren.Network;
 namespace CatsAreOnlineServer.SyncedObjects {
     public abstract class SyncedObject {
         public abstract SyncedObjectType enumType { get; }
-        
+
         public Guid id { get; init; }
         public Player owner { get; init; }
         public float posX { get; set; }
@@ -33,7 +33,7 @@ namespace CatsAreOnlineServer.SyncedObjects {
             message.Write(scale);
             message.Write(rotation);
         }
-        
+
         public void ReadChangedState(NetBuffer message, NetBuffer notifyMessage,
             byte stateTypeByte, ref NetDeliveryMethod deliveryMethod) {
             SyncedObjectStateType stateType = (SyncedObjectStateType)stateTypeByte;
@@ -75,10 +75,10 @@ namespace CatsAreOnlineServer.SyncedObjects {
                     break;
             }
         }
-        
+
         protected virtual void ReadCustomChangedState(NetBuffer message, NetBuffer notifyMessage,
             byte stateTypeByte, ref NetDeliveryMethod deliveryMethod) { }
-        
+
         protected static void SetDeliveryMethod(NetDeliveryMethod method, ref NetDeliveryMethod deliveryMethod) {
             if(method > deliveryMethod) deliveryMethod = method;
         }

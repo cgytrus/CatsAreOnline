@@ -96,7 +96,7 @@ namespace CatsAreOnlineServer {
                                 StringArgumentType.GetString(context, "message"));
                             return 1;
                         })))), "Sends a message in the chat.");
-            
+
             _descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Player>.Literal("config")
                 .Then(LiteralArgumentBuilder<Player>.Literal("get")
                     .Then(RequiredArgumentBuilder<Player, string>.Argument("key", StringArgumentType.Word())

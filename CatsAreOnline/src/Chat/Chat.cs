@@ -41,7 +41,7 @@ namespace CatsAreOnline.Chat {
 
         public static void Initialize(Client client) {
             _client = client;
-            
+
             #region Canvas creation
 
             GameObject canvasObject = new GameObject("Chat UI Canvas") { layer = LayerMask.NameToLayer("UI") };
@@ -90,7 +90,7 @@ namespace CatsAreOnline.Chat {
 
             GameObject containerObject = new GameObject("Messages Container") { layer = LayerMask.NameToLayer("UI") };
             Object.DontDestroyOnLoad(containerObject);
-            
+
             _messagesContainer = containerObject.AddComponent<RectTransform>();
             _messagesContainer.SetParent(layoutGroupTransform);
             _messagesContainer.pivot = Vector2.zero;
@@ -108,7 +108,7 @@ namespace CatsAreOnline.Chat {
             messagesLayoutGroup.childForceExpandHeight = false;
 
             #endregion
-            
+
             #region Input field background creation
 
             _fieldBackground = new GameObject("Input Field") { layer = LayerMask.NameToLayer("UI") };
@@ -129,12 +129,12 @@ namespace CatsAreOnline.Chat {
             fieldLayoutElement.flexibleHeight = -1f;
 
             #endregion
-            
+
             #region Input field creation
-            
+
             _inputField = UI.CreateInputField(fieldBackgroundTransform, "Type message...");
             _inputField.interactable = false;
-            
+
             RectTransform fieldTransform = _inputField.GetComponent<RectTransform>();
             fieldTransform.pivot = Vector2.zero;
             fieldTransform.anchorMin = Vector2.zero;
@@ -145,7 +145,7 @@ namespace CatsAreOnline.Chat {
             _inputField.placeholder.rectTransform.sizeDelta = new Vector2(x, -24f);
             x = _inputField.textComponent.rectTransform.sizeDelta.x;
             _inputField.textComponent.rectTransform.sizeDelta = new Vector2(x, -24f);
-                
+
             _inputField.onEndEdit.AddListener(MessageSent);
 
             #endregion
@@ -161,7 +161,7 @@ namespace CatsAreOnline.Chat {
                 history.Remove(text);
                 history.Add(text);
                 RemoveOldHistory();
-                
+
                 if(text[0] == '/') {
                     string command = text.Substring(1);
                     _client.ExecuteCommand(command);
@@ -188,20 +188,20 @@ namespace CatsAreOnline.Chat {
                 messages.RemoveAt(i);
             }
         }
-        
+
         private static void RemoveOldHistory() {
             for(int i = 0; i < history.Count - historyCapacity; i++) history.RemoveAt(i);
         }
 
         public static void UpdateMessageHistory(bool up, bool down) {
-            if(!chatFocused || !up && !down) return;
+            if(!chatFocused || (!up && !down)) return;
 
             int index = history.IndexOf(_inputField.text) + (up ? -1 : 1);
 
             while(index >= history.Count) index -= history.Count + 1;
             while(index < -1) index += history.Count + 1;
-            
-            _inputField.text = index >= 0 && index < history.Count ? history[index] : null;
+
+            _inputField.text = (index >= 0) && (index < history.Count) ? history[index] : null;
             _inputField.caretPosition = _inputField.text?.Length ?? 0;
         }
 

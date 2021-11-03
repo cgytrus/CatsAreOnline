@@ -159,7 +159,7 @@ namespace CatsAreOnline {
 
         private void InitializeIceRotationUpdates() => On.Cat.CatControls.FixedUpdate += (orig, self) => {
             orig(self);
-            if(self != catControls || !self.IsCatIceActive()) return;
+            if((self != catControls) || !self.IsCatIceActive()) return;
             iceRotation = self.GetActiveCatIce().transform.eulerAngles.z;
         };
 

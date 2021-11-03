@@ -36,7 +36,7 @@ namespace CatsAreOnline {
         private ConfigEntry<KeyboardShortcut> _historyDown;
         private ConfigEntry<float> _messageFadeOutDelay;
         private ConfigEntry<float> _messageFadeOutSpeed;
-        
+
         private ConfigEntry<SyncedObject.InterpolationSettings.InterpolationMode> _interpolationMode;
         private ConfigEntry<double> _interpolationTime;
         private ConfigEntry<int> _interpolationPacketsToAverage;
@@ -230,7 +230,7 @@ namespace CatsAreOnline {
             _client.companionState?.Update();
             if(_update) {
                 _client.SendStateDeltaToServer(_client.catId, _client.catState);
-                if(_client.companionState != null && _client.companionId != Guid.Empty)
+                if((_client.companionState != null) && (_client.companionId != Guid.Empty))
                     _client.SendStateDeltaToServer(_client.companionId, _client.companionState);
             }
             _update = !_update;

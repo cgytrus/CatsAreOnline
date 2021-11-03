@@ -18,7 +18,7 @@ namespace CatsAreOnline.SyncedObjects {
                 base.rotation = value;
             }
         }
-        
+
         public bool ice {
             get => _ice;
             set {
@@ -51,7 +51,7 @@ namespace CatsAreOnline.SyncedObjects {
             scale = MultiplayerPlugin.capturedData.iceBlock.Size.y * 3.5f;
             rotation = MultiplayerPlugin.capturedData.iceRotation;
         }
-        
+
         public override void Write(NetBuffer message) {
             base.Write(message);
             message.Write(ice);

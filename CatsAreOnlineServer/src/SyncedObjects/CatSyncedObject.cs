@@ -6,7 +6,7 @@ using Lidgren.Network;
 namespace CatsAreOnlineServer.SyncedObjects {
     public class CatSyncedObject : SyncedObject {
         public override SyncedObjectType enumType => SyncedObjectType.Cat;
-        
+
         public bool ice { get; set; }
 
         public override void Write(NetBuffer message) {

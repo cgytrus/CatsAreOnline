@@ -95,7 +95,7 @@ namespace CatsAreOnline {
         // yeah, idk how this works either
         public Vector2 currentCatPosition => MultiplayerPlugin.capturedData.inJunction ?
             MultiplayerPlugin.capturedData.junctionPosition :
-            (FollowPlayer.customFollowTarget || Boiler.PlayerBoilerCounter > 0) && spectating == null ?
+            (FollowPlayer.customFollowTarget || (Boiler.PlayerBoilerCounter > 0)) && (spectating == null) ?
             (Vector2)FollowPlayer.LookAt.position :
             MultiplayerPlugin.capturedData.catPartManager ?
                 MultiplayerPlugin.capturedData.catPartManager.GetCatCenter() : Vector2.zero;
@@ -195,7 +195,7 @@ namespace CatsAreOnline {
                 Chat.Chat.AddErrorMessage("Not connected to a server");
                 return;
             }
-            
+
             NetOutgoingMessage message = _client.CreateMessage();
             message.Write((byte)DataType.ChatMessage);
             message.Write(text);
@@ -207,7 +207,7 @@ namespace CatsAreOnline {
                 Chat.Chat.AddErrorMessage("Not connected to a server");
                 return;
             }
-            
+
             NetOutgoingMessage message = _client.CreateMessage();
             message.Write((byte)DataType.Command);
             message.Write(command);
@@ -225,7 +225,7 @@ namespace CatsAreOnline {
         }
 
         public void SendStateDeltaToServer(Guid id, SyncedObjectState state) {
-            if(_client.ConnectionStatus != NetConnectionStatus.Connected || !state.anythingChanged) return;
+            if((_client.ConnectionStatus != NetConnectionStatus.Connected) || !state.anythingChanged) return;
 
             NetOutgoingMessage message = PrepareMessage(DataType.SyncedObjectChangedState);
             message.Write(id.ToString());
@@ -240,7 +240,7 @@ namespace CatsAreOnline {
             message.Write(ownPlayer.worldPackGuid);
             message.Write(ownPlayer.worldPackName);
             SendMessageToServer(message, DeliveryMethods.Reliable);
-            
+
             foreach(KeyValuePair<Guid, SyncedObject> syncedObject in _syncedObjectRegistry)
                 syncedObject.Value.UpdateLocation();
         }
@@ -252,7 +252,7 @@ namespace CatsAreOnline {
             message.Write(ownPlayer.worldGuid);
             message.Write(ownPlayer.worldName);
             SendMessageToServer(message, DeliveryMethods.Reliable);
-            
+
             foreach(KeyValuePair<Guid, SyncedObject> syncedObject in _syncedObjectRegistry)
                 syncedObject.Value.UpdateLocation();
         }
@@ -264,7 +264,7 @@ namespace CatsAreOnline {
             message.Write(ownPlayer.roomGuid);
             message.Write(ownPlayer.roomName);
             SendMessageToServer(message, DeliveryMethods.Reliable);
-            
+
             foreach(KeyValuePair<Guid, SyncedObject> syncedObject in _syncedObjectRegistry)
                 syncedObject.Value.UpdateLocation();
         }
@@ -316,7 +316,7 @@ namespace CatsAreOnline {
         }
 
         public void CheckForWaitingObject(Guid id) {
-            if(!_waitingForSpawn || id != _waitingForSpawnGuid) return;
+            if(!_waitingForSpawn || (id != _waitingForSpawnGuid)) return;
             _waitingForSpawn = false;
             if(!_switchControllingAfterSpawn) return;
             ChangeControllingObject(id);

@@ -80,7 +80,7 @@ namespace CatsAreOnline.MessageHandlers {
 
             _client.AddCat();
 
-            bool inCompanion = _client.companionId != Guid.Empty && _client.companionState != null;
+            bool inCompanion = (_client.companionId != Guid.Empty) && (_client.companionState != null);
             if(inCompanion)
                 _client.AddSyncedObject(_client.companionId, SyncedObjectType.Companion, _client.companionState, true);
         }

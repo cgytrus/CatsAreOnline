@@ -28,7 +28,7 @@ namespace CatsAreOnline.SyncedObjects {
         }
 
         private void UpdateColliders() {
-            bool enableAnyCollider = owner.username != state.client.ownPlayer.username && state.client.playerCollisions;
+            bool enableAnyCollider = (owner.username != state.client.ownPlayer.username) && state.client.playerCollisions;
             catCollider.enabled = enableAnyCollider && !((CatSyncedObjectState)state).ice;
             iceCollider.enabled = enableAnyCollider && ((CatSyncedObjectState)state).ice;
         }

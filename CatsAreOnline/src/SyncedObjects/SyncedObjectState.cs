@@ -59,7 +59,7 @@ namespace CatsAreOnline.SyncedObjects {
                 _rotation = value;
             }
         }
-        
+
         public bool anythingChanged { get; protected set; }
 
         public NetDeliveryMethod deliveryMethod {
@@ -68,12 +68,12 @@ namespace CatsAreOnline.SyncedObjects {
                 if(value > _deliveryMethod) _deliveryMethod = value;
             }
         }
-        
+
         private Vector2 _position;
         private Color _color;
         private float _scale;
         private float _rotation;
-        
+
         private bool _positionChanged;
         private bool _colorChanged;
         private bool _scaleChanged;
@@ -88,18 +88,18 @@ namespace CatsAreOnline.SyncedObjects {
         public abstract void Update();
 
         private void UpdateMovementStatus(State state, float deltaThreshold, float stayTime) {
-            if(!_update && state == State.Normal) {
+            if(!_update && (state == State.Normal)) {
                 Vector2 posDelta = _prevPosition - _position;
-                bool posCheck = Mathf.Abs(posDelta.y) >= deltaThreshold || Mathf.Abs(posDelta.x) >= deltaThreshold;
+                bool posCheck = (Mathf.Abs(posDelta.y) >= deltaThreshold) || (Mathf.Abs(posDelta.x) >= deltaThreshold);
                 if(posCheck) {
                     _update = true;
                     _lastMovingUpdate = Time.unscaledTime;
                 }
             }
-            
-            _moving = (state != State.Normal || _update) && _prevPosition != _position;
 
-            if(_update && Time.unscaledTime - _lastMovingUpdate > stayTime) _update = false;
+            _moving = ((state != State.Normal) || _update) && (_prevPosition != _position);
+
+            if(_update && (Time.unscaledTime - _lastMovingUpdate > stayTime)) _update = false;
         }
 
         public virtual void Write(NetBuffer message) {
@@ -108,7 +108,7 @@ namespace CatsAreOnline.SyncedObjects {
             message.Write(scale);
             message.Write(rotation);
         }
-        
+
         [SuppressMessage("ReSharper", "InvertIf")]
         public virtual void WriteDeltaToMessage(NetOutgoingMessage message) {
             if(_positionChanged) {

@@ -80,7 +80,7 @@ namespace CatsAreOnlineServer.MessageHandlers {
                 List<Guid> toRemove = (from syncedObject in syncedObjectRegistry
                                        where syncedObject.Value.owner.username == player.username
                                        select syncedObject.Key).ToList();
-                foreach(Guid objId in toRemove) syncedObjectRegistry.Remove(objId);                
+                foreach(Guid objId in toRemove) syncedObjectRegistry.Remove(objId);
                 playerRegistry.Remove(connection);
             }
         }

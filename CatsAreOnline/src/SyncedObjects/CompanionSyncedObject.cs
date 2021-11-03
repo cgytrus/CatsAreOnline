@@ -7,7 +7,7 @@ namespace CatsAreOnline.SyncedObjects {
 
         public override void UpdateLocation() {
             base.UpdateLocation();
-            collider.enabled = owner.username != state.client.ownPlayer.username && state.client.playerCollisions;
+            collider.enabled = (owner.username != state.client.ownPlayer.username) && state.client.playerCollisions;
             renderer.sprite = MultiplayerPlugin.capturedData.companionSprite;
         }
     }

@@ -74,7 +74,7 @@ namespace CatsAreOnline {
                                   !string.IsNullOrEmpty(roomGuid);
 
         public bool LocationEqual(string worldPackGuid, string worldGuid, string roomGuid) => IsPlaying() &&
-            worldPackGuid == this.worldPackGuid && worldGuid == this.worldGuid && roomGuid == this.roomGuid;
+            (worldPackGuid == this.worldPackGuid) && (worldGuid == this.worldGuid) && (roomGuid == this.roomGuid);
 
         public bool LocationEqual(Player player) =>
             LocationEqual(player.worldPackGuid, player.worldGuid, player.roomGuid);

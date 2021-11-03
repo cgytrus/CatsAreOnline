@@ -170,7 +170,7 @@ namespace CatsAreOnline.MessageHandlers {
             _syncedObjectRegistry[id].Remove();
             _syncedObjectRegistry.Remove(id);
         }
-        
+
         private void SyncedObjectChangedStateReceived(NetBuffer message) {
             Guid id = Guid.Parse(message.ReadString());
             if(!_syncedObjectRegistry.TryGetValue(id, out SyncedObject syncedObject)) return;
