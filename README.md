@@ -8,13 +8,11 @@ A multiplayer mod for [Cats are Liquid - A Better Place](https://store.steampowe
    the same way as Cats are Online API (look for the latest one **without** "Server")
 3. Open the game and press F1 when you get to the main menu
 4. Open the "Cats are Online" category
-5. Change the Username and Display Name options to whatever you like (you can use [Rich Text](https://docs.unity3d.com/Packages/com.unity.ugui@1.0/manual/StyledText.html),
-   however, keep in mind that username is the name that people use in commands, so if you use rich text in your username,
-   it'll be hard if even possible to type, so don't use rich text in usernames please)
+5. Change the Username and Display Name options to whatever you like (you can use [Rich Text](https://docs.unity3d.com/Packages/com.unity.ugui@1.0/manual/StyledText.html))
 6. Change the Address option to the address of the server you're connecting to
    (thanks to [sbeve](https://github.com/svtetering), there's now an official server running at **`cao.cgyt.ru`**)
 7. Enable the Connected option
-8. Press T to chat, type /help in chat for a list of available commands
+8. Press T to chat, type /help in chat for a list of available commands (you can use [Rich Text](https://docs.unity3d.com/Packages/com.unity.ugui@1.0/manual/StyledText.html) here as well)
 
 ### Hosting a server
 1. Forward the port you want to use (or enable UPnP in config.json after running the server for the first time, default port is 1337)
