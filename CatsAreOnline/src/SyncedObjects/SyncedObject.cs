@@ -39,11 +39,12 @@ namespace CatsAreOnline.SyncedObjects {
 
             float min = _pendingTimes[index];
             float max = _pendingTimes[index + 1];
-            // extrapolate only for `extrapolationTime`, don't do anything after that
-            if(time - max > interpolationSettings.extrapolationTime) return;
 
             float duration = max - min;
             float t = duration == 0f ? 1f : (time - min) / duration;
+            // extrapolate only for `extrapolationTime`
+            if(time - max > interpolationSettings.extrapolationTime)
+                t = (duration + interpolationSettings.extrapolationTime) / duration;
 
             // remove old states
             int removeCount = index - 3;
