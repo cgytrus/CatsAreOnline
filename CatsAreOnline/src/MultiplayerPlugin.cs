@@ -217,7 +217,6 @@ namespace CatsAreOnline {
 
         private void Update() {
             _client.Update();
-            _client.UpdateAllNameTagsPositions();
 
             _client.catState.Update();
             _client.companionState?.Update();
@@ -233,6 +232,8 @@ namespace CatsAreOnline {
             Chat.Chat.UpdateMessagesFadeOut();
             Chat.Chat.UpdateMessageHistory(_historyUp.Value.IsDown(), _historyDown.Value.IsDown());
         }
+
+        private void LateUpdate() => _client.UpdateAllNameTagsPositions();
 
         private void OnApplicationQuit() => SetConnected(false);
 
