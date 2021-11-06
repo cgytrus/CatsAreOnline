@@ -1,10 +1,9 @@
 ﻿using System;
-using System.Diagnostics;
+using System.Collections.Generic;
 
 using CalApi.API;
 
 using CatsAreOnline.Shared;
-using CatsAreOnline.Shared.StateTypes;
 
 using Lidgren.Network;
 
@@ -13,20 +12,10 @@ using UnityEngine.UI;
 
 namespace CatsAreOnline.SyncedObjects {
     public abstract class SyncedObject : MonoBehaviour {
-        public readonly struct InterpolationSettings {
-            public enum InterpolationMode { Lerp, LerpUnclamped }
-
-            public InterpolationMode mode { get; }
-            public double time { get; }
-            public int packetsToAverage { get; }
-            public double maxTime { get; }
-
-            public InterpolationSettings(InterpolationMode mode, double time, int packetsToAverage, double maxTime) {
-                this.mode = mode;
-                this.time = time;
-                this.packetsToAverage = packetsToAverage;
-                this.maxTime = maxTime;
-            }
+        public class InterpolationSettings {
+            public float delay { get; set; }
+            public bool extrapolation { get; set; }
+            public float extrapolationTime { get; set; }
         }
 
         public Guid id { get; private set; }
@@ -36,65 +25,68 @@ namespace CatsAreOnline.SyncedObjects {
         public Rigidbody2D rigidbody { get; set; }
         protected abstract SyncedObjectState state { get; }
 
-        public static InterpolationSettings interpolationSettings { get; set; }
-
-        private double _setPositionTime;
-        private double _toAverage;
-        private int _toAverageCount;
-        private Stopwatch _interpolateStopwatch;
-        private Vector3 _fromPosition;
+        public static InterpolationSettings interpolationSettings { get; } = new();
 
         private readonly Vector2 _nameTagOffset = Vector2.up;
 
-        private void Awake() => _setPositionTime = Time.fixedDeltaTime;
+        private readonly List<float> _pendingTimes = new(8);
 
-        private void FixedUpdate() {
-            Transform rendererTransform = renderer.transform;
-            rendererTransform.position = interpolationSettings.mode switch {
-                InterpolationSettings.InterpolationMode.Lerp => Vector3.Lerp(_fromPosition, state.position,
-                    (float)(_interpolateStopwatch.Elapsed.TotalSeconds /
-                            (_setPositionTime * interpolationSettings.time))),
-                InterpolationSettings.InterpolationMode.LerpUnclamped => Vector3.LerpUnclamped(_fromPosition,
-                    state.position,
-                    (float)(_interpolateStopwatch.Elapsed.TotalSeconds /
-                            (_setPositionTime * interpolationSettings.time))),
-                _ => rendererTransform.position
-            };
+        // https://developer.valvesoftware.com/wiki/Source_Multiplayer_Networking#Entity_interpolation
+        private void Update() {
+            float time = (float)NetTime.Now - interpolationSettings.delay;
+            int index = GetCurrentPendingTimeIndex(time);
+            if((index < 0) || (index + 1 >= _pendingTimes.Count)) return;
+
+            float min = _pendingTimes[index];
+            float max = _pendingTimes[index + 1];
+            // extrapolate only for `extrapolationTime`, don't do anything after that
+            if(time - max > interpolationSettings.extrapolationTime) return;
+
+            float duration = max - min;
+            float t = duration == 0f ? 1f : (time - min) / duration;
+
+            // remove old states
+            int removeCount = index - 3;
+            if(removeCount > 0) _pendingTimes.RemoveRange(0, removeCount);
+
+            Interpolate(index, removeCount, t);
         }
 
-        public virtual void SetPosition(Vector2 position) {
-            state.position = position;
-            _fromPosition = renderer.transform.position;
-            transform.position = position;
-            _toAverage += Math.Min(_interpolateStopwatch?.Elapsed.TotalSeconds ?? Time.fixedDeltaTime,
-                Time.fixedDeltaTime * interpolationSettings.maxTime);
-            _toAverageCount++;
-            if(_toAverageCount >= interpolationSettings.packetsToAverage) {
-                _setPositionTime = _toAverage / _toAverageCount;
-                _toAverage = 0d;
-                _toAverageCount = 0;
+        private int GetCurrentPendingTimeIndex(float time) {
+            int currentPendingTimeIndex = -1;
+            for(int i = 0; i < _pendingTimes.Count; i++) {
+                if(_pendingTimes[i] <= time) currentPendingTimeIndex = i;
+                else break;
             }
-            if(_interpolateStopwatch == null) _interpolateStopwatch = Stopwatch.StartNew();
-            else _interpolateStopwatch.Restart();
+
+            return Math.Min(currentPendingTimeIndex, _pendingTimes.Count - 2);
         }
 
-        public virtual void SetColor(Color color) {
+        protected abstract void Interpolate(int index, int removeCount, float t);
+
+        protected virtual void SetPosition(Vector2 position, Vector2 interpolatedPosition) {
+            state.position = position;
+            rigidbody.MovePosition(position);
+            renderer.transform.position = interpolatedPosition;
+        }
+
+        protected virtual void SetColor(Color color) {
             state.color = color;
             renderer.color = color;
         }
 
-        public virtual void SetScale(float scale) {
+        protected virtual void SetScale(float scale) {
             state.scale = scale;
             transform.localScale = Vector3.one * scale;
             renderer.transform.localScale = Vector3.one * scale;
         }
 
-        public virtual void SetRotation(float rotation) {
+        protected virtual void SetRotation(float rotation, float interpolatedRotation) {
             state.rotation = rotation;
             rigidbody.MoveRotation(rotation);
             Transform transform = renderer.transform;
             Vector3 currentRot = transform.eulerAngles;
-            currentRot.z = rotation;
+            currentRot.z = interpolatedRotation;
             transform.eulerAngles = currentRot;
         }
 
@@ -107,28 +99,17 @@ namespace CatsAreOnline.SyncedObjects {
             renderer.enabled = !own || state.client.displayOwnCat;
         }
 
-        public void ReadChangedState(NetBuffer message, byte stateTypeByte) {
-            SyncedObjectStateType stateType = (SyncedObjectStateType)stateTypeByte;
-            switch(stateType) {
-                case SyncedObjectStateType.Position:
-                    SetPosition(message.ReadVector2());
-                    break;
-                case SyncedObjectStateType.Color:
-                    SetColor(message.ReadColor());
-                    break;
-                case SyncedObjectStateType.Scale:
-                    SetScale(message.ReadFloat());
-                    break;
-                case SyncedObjectStateType.Rotation:
-                    SetRotation(message.ReadFloat());
-                    break;
-                default:
-                    ReadCustomChangedState(message, stateTypeByte);
-                    break;
-            }
+        public void ReadStateDelta(NetIncomingMessage message) {
+            float time = (float)message.ReceiveTime;
+            _pendingTimes.Add(time);
+            ReadDelta(message);
+            if((_pendingTimes.Count < 2) || (time - _pendingTimes[_pendingTimes.Count - 2] != 0f)) return;
+            _pendingTimes.RemoveAt(_pendingTimes.Count - 2);
+            RemovePreLatestDelta();
         }
 
-        protected virtual void ReadCustomChangedState(NetBuffer message, byte stateTypeByte) { }
+        protected abstract void ReadDelta(NetBuffer buffer);
+        protected abstract void RemovePreLatestDelta();
 
         public static SyncedObject Create(Client client, SyncedObjectType type, Guid id, Player owner,
             NetBuffer message) {
@@ -170,10 +151,10 @@ namespace CatsAreOnline.SyncedObjects {
                     cat.catCollider = catCollider;
                     cat.iceCollider = iceCollider;
 
-                    cat.SetPosition(position);
+                    cat.SetPosition(position, position);
                     cat.SetColor(color);
                     cat.SetScale(scale);
-                    cat.SetRotation(rotation);
+                    cat.SetRotation(rotation, rotation);
                     cat.SetIce(ice);
 
                     cat.UpdateLocation();
@@ -193,10 +174,10 @@ namespace CatsAreOnline.SyncedObjects {
                     companion.rigidbody = rigidbody;
                     companion.collider = companionCollider;
 
-                    companion.SetPosition(position);
+                    companion.SetPosition(position, position);
                     companion.SetColor(color);
                     companion.SetScale(scale);
-                    companion.SetRotation(rotation);
+                    companion.SetRotation(rotation, rotation);
 
                     companion.UpdateLocation();
 

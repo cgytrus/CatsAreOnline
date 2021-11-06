@@ -49,10 +49,12 @@
         <Compile Include="src\Player.cs" />
         <Compile Include="src\SyncedObjects\CatSyncedObject.cs" />
         <Compile Include="src\SyncedObjects\CatSyncedObjectState.cs" />
+        <Compile Include="src\SyncedObjects\CatSyncedObjectStateDelta.cs" />
         <Compile Include="src\SyncedObjects\CompanionSyncedObject.cs" />
         <Compile Include="src\SyncedObjects\CompanionSyncedObjectState.cs" />
         <Compile Include="src\SyncedObjects\SyncedObject.cs" />
         <Compile Include="src\SyncedObjects\SyncedObjectState.cs" />
+        <Compile Include="src\SyncedObjects\CompanionSyncedObjectStateDelta.cs" />
     </ItemGroup>
     <ItemGroup>
       <None Include="packages.config" />

@@ -46,7 +46,7 @@ namespace CatsAreOnline.MessageHandlers {
         private void UnconnectedDataMessageReceived(NetIncomingMessage message) =>
             _unconnectedDataMessageHandler.MessageReceived(message);
 
-        private void DataMessageReceived(NetBuffer message) => _dataMessageHandler.MessageReceived(message);
+        private void DataMessageReceived(NetIncomingMessage message) => _dataMessageHandler.MessageReceived(message);
 
         private void WarningMessageReceived(NetBuffer message) => _logger.LogWarning($"{message.ReadString()}");
 

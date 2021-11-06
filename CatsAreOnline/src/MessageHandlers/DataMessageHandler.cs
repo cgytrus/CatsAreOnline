@@ -16,7 +16,7 @@ namespace CatsAreOnline.MessageHandlers {
         private readonly Dictionary<string, Player> _playerRegistry;
         private readonly Dictionary<Guid, SyncedObject> _syncedObjectRegistry;
 
-        private readonly IReadOnlyDictionary<DataType, Action<NetBuffer>> _messages;
+        private readonly IReadOnlyDictionary<DataType, Action<NetIncomingMessage>> _messages;
 
         public DataMessageHandler(Client client, ManualLogSource logger, Dictionary<string, Player> playerRegistry,
             Dictionary<Guid, SyncedObject> syncedObjectRegistry) {
@@ -25,7 +25,7 @@ namespace CatsAreOnline.MessageHandlers {
             _playerRegistry = playerRegistry;
             _syncedObjectRegistry = syncedObjectRegistry;
 
-            _messages = new Dictionary<DataType, Action<NetBuffer>> {
+            _messages = new Dictionary<DataType, Action<NetIncomingMessage>> {
                 { DataType.PlayerJoined, PlayerJoinedReceived },
                 { DataType.PlayerLeft, PlayerLeftReceived },
                 { DataType.PlayerChangedWorldPack, PlayerChangedWorldPackReceived },
@@ -39,10 +39,10 @@ namespace CatsAreOnline.MessageHandlers {
             };
         }
 
-        public void MessageReceived(NetBuffer message) {
+        public void MessageReceived(NetIncomingMessage message) {
             DataType type = (DataType)message.ReadByte();
 
-            if(_messages.TryGetValue(type, out Action<NetBuffer> action)) action(message);
+            if(_messages.TryGetValue(type, out Action<NetIncomingMessage> action)) action(message);
             else _logger.LogWarning($"[WARN] Unknown data message type received: {type.ToString()}");
         }
 
@@ -171,11 +171,11 @@ namespace CatsAreOnline.MessageHandlers {
             _syncedObjectRegistry.Remove(id);
         }
 
-        private void SyncedObjectChangedStateReceived(NetBuffer message) {
+        private void SyncedObjectChangedStateReceived(NetIncomingMessage message) {
             Guid id = Guid.Parse(message.ReadString());
             if(!_syncedObjectRegistry.TryGetValue(id, out SyncedObject syncedObject)) return;
 
-            while(message.ReadByte(out byte stateTypeByte)) syncedObject.ReadChangedState(message, stateTypeByte);
+            syncedObject.ReadStateDelta(message);
         }
 
         private void ChatMessageReceived(NetBuffer message) {

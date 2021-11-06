@@ -37,14 +37,15 @@ namespace CatsAreOnline {
         private ConfigEntry<float> _messageFadeOutDelay;
         private ConfigEntry<float> _messageFadeOutSpeed;
 
-        private ConfigEntry<SyncedObject.InterpolationSettings.InterpolationMode> _interpolationMode;
-        private ConfigEntry<double> _interpolationTime;
-        private ConfigEntry<int> _interpolationPacketsToAverage;
-        private ConfigEntry<double> _interpolationMaxTime;
+        private ConfigEntry<float> _remoteUpdateTime;
+        private ConfigEntry<float> _interpolationDelay;
+        private ConfigEntry<bool> _extrapolation;
+        private ConfigEntry<float> _extrapolationTime;
 
         private Client _client;
 
-        private bool _update;
+        private float _updateTime;
+        private float _updateTimer;
 
         private void Awake() {
             CreateSettings();
@@ -80,11 +81,10 @@ namespace CatsAreOnline {
             _messageFadeOutDelay = Config.Bind("Chat", "Message Fade Out Delay", 5f, "");
             _messageFadeOutSpeed = Config.Bind("Chat", "Message Fade Out Speed", 1f, "");
 
-            _interpolationMode = Config.Bind("Advanced", "Interpolation Mode",
-                SyncedObject.InterpolationSettings.InterpolationMode.Lerp, "");
-            _interpolationTime = Config.Bind("Advanced", "Interpolation Time", 3d, "");
-            _interpolationPacketsToAverage = Config.Bind("Advanced", "Interpolation Packets To Average", 20, "");
-            _interpolationMaxTime = Config.Bind("Advanced", "Interpolation Max Time", 10d, "");
+            _remoteUpdateTime = Config.Bind("Advanced", "Remote Update Time", 0.05f, "");
+            _interpolationDelay = Config.Bind("Advanced", "Interpolation Delay", 0.1f, "");
+            _extrapolation = Config.Bind("Advanced", "Extrapolation", true, "");
+            _extrapolationTime = Config.Bind("Advanced", "Extrapolation Time", 0.25f, "");
         }
 
         private void SetupSettings() {
@@ -113,22 +113,21 @@ namespace CatsAreOnline {
             Chat.Chat.fadeOutSpeed = _messageFadeOutSpeed.Value;
             _messageFadeOutSpeed.SettingChanged += (_, _) => Chat.Chat.fadeOutSpeed = _messageFadeOutSpeed.Value;
 
-            SyncedObject.interpolationSettings = new SyncedObject.InterpolationSettings(_interpolationMode.Value,
-                _interpolationTime.Value, _interpolationPacketsToAverage.Value, _interpolationMaxTime.Value);
-            _interpolationMode.SettingChanged += (_, _) => SyncedObject.interpolationSettings =
-                new SyncedObject.InterpolationSettings(_interpolationMode.Value, SyncedObject.interpolationSettings.time,
-                    SyncedObject.interpolationSettings.packetsToAverage, SyncedObject.interpolationSettings.maxTime);
-            _interpolationTime.SettingChanged += (_, _) => SyncedObject.interpolationSettings =
-                new SyncedObject.InterpolationSettings(SyncedObject.interpolationSettings.mode, _interpolationTime.Value,
-                    SyncedObject.interpolationSettings.packetsToAverage, SyncedObject.interpolationSettings.maxTime);
-            _interpolationPacketsToAverage.SettingChanged += (_, _) => SyncedObject.interpolationSettings =
-                new SyncedObject.InterpolationSettings(SyncedObject.interpolationSettings.mode,
-                    SyncedObject.interpolationSettings.time,
-                    _interpolationPacketsToAverage.Value, SyncedObject.interpolationSettings.maxTime);
-            _interpolationMaxTime.SettingChanged += (_, _) => SyncedObject.interpolationSettings =
-                new SyncedObject.InterpolationSettings(SyncedObject.interpolationSettings.mode,
-                    SyncedObject.interpolationSettings.time,
-                    SyncedObject.interpolationSettings.packetsToAverage, _interpolationMaxTime.Value);
+            _updateTime = _remoteUpdateTime.Value;
+            _remoteUpdateTime.SettingChanged +=
+                (_, _) => _updateTime = _remoteUpdateTime.Value;
+
+            SyncedObject.interpolationSettings.delay = _interpolationDelay.Value;
+            _interpolationDelay.SettingChanged +=
+                (_, _) => SyncedObject.interpolationSettings.delay = _interpolationDelay.Value;
+
+            SyncedObject.interpolationSettings.extrapolation = _extrapolation.Value;
+            _extrapolation.SettingChanged +=
+                (_, _) => SyncedObject.interpolationSettings.extrapolation = _extrapolation.Value;
+
+            SyncedObject.interpolationSettings.extrapolationTime = _extrapolationTime.Value;
+            _extrapolationTime.SettingChanged +=
+                (_, _) => SyncedObject.interpolationSettings.extrapolationTime = _extrapolationTime.Value;
         }
 
         private void ApplyHooks() {
@@ -220,20 +219,19 @@ namespace CatsAreOnline {
             _client.Update();
             _client.UpdateAllNameTagsPositions();
 
-            if(_toggleChat.Value.IsDown()) Chat.Chat.chatFocused = true;
-            Chat.Chat.UpdateMessagesFadeOut();
-            Chat.Chat.UpdateMessageHistory(_historyUp.Value.IsDown(), _historyDown.Value.IsDown());
-        }
-
-        private void FixedUpdate() {
             _client.catState.Update();
             _client.companionState?.Update();
-            if(_update) {
+            if(_updateTimer >= _updateTime) {
+                _updateTimer -= _updateTime;
                 _client.SendStateDeltaToServer(_client.catId, _client.catState);
                 if((_client.companionState != null) && (_client.companionId != Guid.Empty))
                     _client.SendStateDeltaToServer(_client.companionId, _client.companionState);
             }
-            _update = !_update;
+            _updateTimer += Time.unscaledDeltaTime;
+
+            if(_toggleChat.Value.IsDown()) Chat.Chat.chatFocused = true;
+            Chat.Chat.UpdateMessagesFadeOut();
+            Chat.Chat.UpdateMessageHistory(_historyUp.Value.IsDown(), _historyDown.Value.IsDown());
         }
 
         private void OnApplicationQuit() => SetConnected(false);
