@@ -1,4 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+
+using CalApi.API;
 
 using Lidgren.Network;
 
@@ -37,5 +40,30 @@ namespace CatsAreOnline.SyncedObjects {
         }
 
         protected override void RemovePreLatestDelta() => _pendingDeltas.RemoveAt(_pendingDeltas.Count - 2);
+
+        public static CompanionSyncedObject Create(Client client, Guid id, Player owner, GameObject obj,
+            SpriteRenderer renderer, Rigidbody2D rigidbody,
+            Vector2 position, Color color, float scale, float rotation) {
+            BoxCollider2D companionCollider = obj.AddComponent<BoxCollider2D>();
+            companionCollider.size = Vector2.one;
+
+            CompanionSyncedObject companion = obj.AddComponent<CompanionSyncedObject>();
+            companion.state.client = client;
+            companion.id = id;
+            companion.owner = owner;
+            companion.nameTag = CreatePlayerNameTag(owner.username, owner.displayName, client.nameTags, UI.font);
+            companion.renderer = renderer;
+            companion.rigidbody = rigidbody;
+            companion.collider = companionCollider;
+
+            companion.SetPosition(position, position);
+            companion.SetColor(color);
+            companion.SetScale(scale);
+            companion.SetRotation(rotation, rotation);
+
+            companion.UpdateLocation();
+
+            return companion;
+        }
     }
 }

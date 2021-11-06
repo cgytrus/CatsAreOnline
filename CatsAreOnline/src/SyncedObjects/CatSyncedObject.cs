@@ -1,4 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+
+using CalApi.API;
 
 using Lidgren.Network;
 
@@ -55,6 +58,37 @@ namespace CatsAreOnline.SyncedObjects {
             bool enableAnyCollider = (owner.username != state.client.ownPlayer.username) && state.client.playerCollisions;
             catCollider.enabled = enableAnyCollider && !((CatSyncedObjectState)state).ice;
             iceCollider.enabled = enableAnyCollider && ((CatSyncedObjectState)state).ice;
+        }
+
+        public static CatSyncedObject Create(Client client, Guid id, Player owner, NetBuffer message, GameObject obj,
+            SpriteRenderer renderer, Rigidbody2D rigidbody,
+            Vector2 position, Color color, float scale, float rotation) {
+            bool ice = message.ReadBoolean();
+
+            CircleCollider2D catCollider = obj.AddComponent<CircleCollider2D>();
+            catCollider.radius = 0.4f;
+
+            BoxCollider2D iceCollider = obj.AddComponent<BoxCollider2D>();
+            iceCollider.size = Vector2.one;
+
+            CatSyncedObject cat = obj.AddComponent<CatSyncedObject>();
+            cat.state.client = client;
+            cat.id = id;
+            cat.owner = owner;
+            cat.nameTag = CreatePlayerNameTag(owner.username, owner.displayName, client.nameTags, UI.font);
+            cat.renderer = renderer;
+            cat.rigidbody = rigidbody;
+            cat.catCollider = catCollider;
+            cat.iceCollider = iceCollider;
+
+            cat.SetPosition(position, position);
+            cat.SetColor(color);
+            cat.SetScale(scale);
+            cat.SetRotation(rotation, rotation);
+            cat.SetIce(ice);
+
+            cat.UpdateLocation();
+            return cat;
         }
     }
 }
