@@ -39,8 +39,9 @@ namespace CatsAreOnline {
 
         private ConfigEntry<float> _remoteUpdateTime;
         private ConfigEntry<float> _interpolationDelay;
-        private ConfigEntry<bool> _extrapolation;
         private ConfigEntry<float> _extrapolationTime;
+        private ConfigEntry<SyncedObject.InterpolationSettings.MultipleArrivalsHandling>
+            _interpolationMultipleArrivalsHandling;
 
         private Client _client;
 
@@ -83,8 +84,10 @@ namespace CatsAreOnline {
 
             _remoteUpdateTime = Config.Bind("Advanced", "Remote Update Time", 0.05f, "");
             _interpolationDelay = Config.Bind("Advanced", "Interpolation Delay", 0.1f, "");
-            _extrapolation = Config.Bind("Advanced", "Extrapolation", true, "");
             _extrapolationTime = Config.Bind("Advanced", "Extrapolation Time", 0.25f, "");
+            _interpolationMultipleArrivalsHandling = Config.Bind("Advanced", "Multiple Arrivals Handling",
+                SyncedObject.InterpolationSettings.MultipleArrivalsHandling.Drop,
+                "What to do when multiple state change messages arrive at the same time.");
         }
 
         private void SetupSettings() {
@@ -121,13 +124,14 @@ namespace CatsAreOnline {
             _interpolationDelay.SettingChanged +=
                 (_, _) => SyncedObject.interpolationSettings.delay = _interpolationDelay.Value;
 
-            SyncedObject.interpolationSettings.extrapolation = _extrapolation.Value;
-            _extrapolation.SettingChanged +=
-                (_, _) => SyncedObject.interpolationSettings.extrapolation = _extrapolation.Value;
-
             SyncedObject.interpolationSettings.extrapolationTime = _extrapolationTime.Value;
             _extrapolationTime.SettingChanged +=
                 (_, _) => SyncedObject.interpolationSettings.extrapolationTime = _extrapolationTime.Value;
+
+            SyncedObject.interpolationSettings.multipleArrivalsHandling = _interpolationMultipleArrivalsHandling.Value;
+            _interpolationMultipleArrivalsHandling.SettingChanged +=
+                (_, _) => SyncedObject.interpolationSettings.multipleArrivalsHandling =
+                    _interpolationMultipleArrivalsHandling.Value;
         }
 
         private void ApplyHooks() {

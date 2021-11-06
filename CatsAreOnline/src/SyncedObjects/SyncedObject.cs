@@ -13,9 +13,11 @@ using UnityEngine.UI;
 namespace CatsAreOnline.SyncedObjects {
     public abstract class SyncedObject : MonoBehaviour {
         public class InterpolationSettings {
+            public enum MultipleArrivalsHandling { Drop, Rearrange }
+
             public float delay { get; set; }
-            public bool extrapolation { get; set; }
             public float extrapolationTime { get; set; }
+            public MultipleArrivalsHandling multipleArrivalsHandling { get; set; }
         }
 
         public Guid id { get; private set; }
@@ -104,9 +106,18 @@ namespace CatsAreOnline.SyncedObjects {
             float time = (float)message.ReceiveTime;
             _pendingTimes.Add(time);
             ReadDelta(message);
-            if((_pendingTimes.Count < 2) || (time - _pendingTimes[_pendingTimes.Count - 2] != 0f)) return;
-            _pendingTimes.RemoveAt(_pendingTimes.Count - 2);
-            RemovePreLatestDelta();
+            switch(interpolationSettings.multipleArrivalsHandling) {
+                case InterpolationSettings.MultipleArrivalsHandling.Drop:
+                    if((_pendingTimes.Count < 2) || (time - _pendingTimes[_pendingTimes.Count - 2] != 0f)) return;
+                    _pendingTimes.RemoveAt(_pendingTimes.Count - 2);
+                    RemovePreLatestDelta();
+                    break;
+                case InterpolationSettings.MultipleArrivalsHandling.Rearrange:
+                    if((_pendingTimes.Count < 3) || (time - _pendingTimes[_pendingTimes.Count - 2] != 0f)) return;
+                    float half = (_pendingTimes[_pendingTimes.Count - 2] - _pendingTimes[_pendingTimes.Count - 3]) / 2f;
+                    _pendingTimes[_pendingTimes.Count - 2] -= half;
+                    break;
+            }
         }
 
         protected abstract void ReadDelta(NetBuffer buffer);
