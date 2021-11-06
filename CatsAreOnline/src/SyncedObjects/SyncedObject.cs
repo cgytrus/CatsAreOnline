@@ -69,7 +69,7 @@ namespace CatsAreOnline.SyncedObjects {
 
         protected virtual void SetPosition(Vector2 position, Vector2 interpolatedPosition) {
             state.position = position;
-            rigidbody.MovePosition(position);
+            transform.position = position;
             renderer.transform.position = interpolatedPosition;
         }
 
