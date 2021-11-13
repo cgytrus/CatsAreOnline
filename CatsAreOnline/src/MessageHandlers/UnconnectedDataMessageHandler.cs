@@ -7,33 +7,33 @@ using CatsAreOnline.Shared;
 
 using Lidgren.Network;
 
-namespace CatsAreOnline.MessageHandlers {
-    public class UnconnectedDataMessageHandler {
-        private readonly ManualLogSource _logger;
-        private readonly StatusChangedMessageHandler _statusChangedMessageHandler;
+namespace CatsAreOnline.MessageHandlers;
 
-        private readonly IReadOnlyDictionary<DataType, Action<NetIncomingMessage>> _messages;
+public class UnconnectedDataMessageHandler {
+    private readonly ManualLogSource _logger;
+    private readonly StatusChangedMessageHandler _statusChangedMessageHandler;
 
-        public UnconnectedDataMessageHandler(ManualLogSource logger,
-            StatusChangedMessageHandler statusChangedMessageHandler) {
-            _logger = logger;
-            _statusChangedMessageHandler = statusChangedMessageHandler;
+    private readonly IReadOnlyDictionary<DataType, Action<NetIncomingMessage>> _messages;
 
-            _messages = new Dictionary<DataType, Action<NetIncomingMessage>> {
-                { DataType.RestartReconnect, RestartReconnectReceived }
-            };
-        }
+    public UnconnectedDataMessageHandler(ManualLogSource logger,
+        StatusChangedMessageHandler statusChangedMessageHandler) {
+        _logger = logger;
+        _statusChangedMessageHandler = statusChangedMessageHandler;
 
-        public void MessageReceived(NetIncomingMessage message) {
-            DataType type = (DataType)message.ReadByte();
+        _messages = new Dictionary<DataType, Action<NetIncomingMessage>> {
+            { DataType.RestartReconnect, RestartReconnectReceived }
+        };
+    }
 
-            if(_messages.TryGetValue(type, out Action<NetIncomingMessage> action)) action(message);
-            else _logger.LogWarning($"[WARN] Unknown unconnected data message type received: {type.ToString()}");
-        }
+    public void MessageReceived(NetIncomingMessage message) {
+        DataType type = (DataType)message.ReadByte();
 
-        private void RestartReconnectReceived(NetIncomingMessage message) {
-            if(!Equals(message.SenderEndPoint, _statusChangedMessageHandler.lastConnection)) return;
-            MultiplayerPlugin.connected.Value = true;
-        }
+        if(_messages.TryGetValue(type, out Action<NetIncomingMessage> action)) action(message);
+        else _logger.LogWarning($"[WARN] Unknown unconnected data message type received: {type.ToString()}");
+    }
+
+    private void RestartReconnectReceived(NetIncomingMessage message) {
+        if(!Equals(message.SenderEndPoint, _statusChangedMessageHandler.lastConnection)) return;
+        if(MultiplayerPlugin.connected is not null) MultiplayerPlugin.connected.Value = true;
     }
 }

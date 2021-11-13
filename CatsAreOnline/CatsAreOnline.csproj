@@ -1,178 +1,54 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-    <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-        <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-        <ProjectGuid>{E33311E4-272A-4079-849C-B0AFDD16CAA3}</ProjectGuid>
-        <OutputType>Library</OutputType>
-        <AppDesignerFolder>Properties</AppDesignerFolder>
-        <RootNamespace>CatsAreOnline</RootNamespace>
-        <AssemblyName>CatsAreOnline</AssemblyName>
-        <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
-        <FileAlignment>512</FileAlignment>
-        <LangVersion>9</LangVersion>
+        <TargetFramework>net471</TargetFramework>
+        <LangVersion>10</LangVersion>
+        <AssemblyTitle>CatsAreOnline</AssemblyTitle>
+        <Nullable>enable</Nullable>
+        <OutputPath>bin\$(Configuration)\</OutputPath>
     </PropertyGroup>
     <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-        <PlatformTarget>AnyCPU</PlatformTarget>
-        <DebugSymbols>true</DebugSymbols>
         <DebugType>full</DebugType>
-        <Optimize>false</Optimize>
-        <OutputPath>bin\Debug\</OutputPath>
-        <DefineConstants>DEBUG;TRACE</DefineConstants>
-        <ErrorReport>prompt</ErrorReport>
-        <WarningLevel>4</WarningLevel>
     </PropertyGroup>
     <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-        <PlatformTarget>AnyCPU</PlatformTarget>
         <DebugType>pdbonly</DebugType>
-        <Optimize>true</Optimize>
-        <OutputPath>bin\Release\</OutputPath>
-        <DefineConstants>TRACE</DefineConstants>
-        <ErrorReport>prompt</ErrorReport>
-        <WarningLevel>4</WarningLevel>
     </PropertyGroup>
     <ItemGroup>
-        <Compile Include="Properties\AssemblyInfo.cs" />
-        <Compile Include="src\CapturedData.cs" />
-        <Compile Include="src\CatStateExtensions.cs" />
-        <Compile Include="src\Chat\Chat.cs" />
-        <Compile Include="src\Chat\Message.cs" />
-        <Compile Include="src\Client.cs" />
-        <Compile Include="src\Commands.cs" />
-        <Compile Include="src\MessageHandlers\DataMessageHandler.cs" />
-        <Compile Include="src\MessageHandlers\MessageHandler.cs" />
-        <Compile Include="src\MessageHandlers\StatusChangedMessageHandler.cs" />
-        <Compile Include="src\MessageHandlers\UnconnectedDataMessageHandler.cs" />
-        <Compile Include="src\NetBufferExtensions.cs" />
-        <Compile Include="src\MultiplayerPlugin.cs" />
-        <Compile Include="src\Player.cs" />
-        <Compile Include="src\SyncedObjects\CatSyncedObject.cs" />
-        <Compile Include="src\SyncedObjects\CatSyncedObjectState.cs" />
-        <Compile Include="src\SyncedObjects\CatSyncedObjectStateDelta.cs" />
-        <Compile Include="src\SyncedObjects\CompanionSyncedObject.cs" />
-        <Compile Include="src\SyncedObjects\CompanionSyncedObjectState.cs" />
-        <Compile Include="src\SyncedObjects\SyncedObject.cs" />
-        <Compile Include="src\SyncedObjects\SyncedObjectState.cs" />
-        <Compile Include="src\SyncedObjects\CompanionSyncedObjectStateDelta.cs" />
+        <ProjectReference Include="..\CatsAreOnline.Shared\CatsAreOnline.Shared.csproj" />
     </ItemGroup>
     <ItemGroup>
-      <None Include="packages.config" />
-    </ItemGroup>
-    <ItemGroup>
-      <ProjectReference Include="..\CatsAreOnline.Shared\CatsAreOnline.Shared.csproj">
-        <Project>{c49eaf4d-ee06-49c4-9137-f2a7a9ad8e0b}</Project>
-        <Name>CatsAreOnline.Shared</Name>
-      </ProjectReference>
-    </ItemGroup>
-    <ItemGroup>
-        <Content Include="libs\0Harmony.dll" />
         <Content Include="libs\Assembly-CSharp.dll" />
-        <Content Include="libs\BepInEx.dll" />
         <Content Include="libs\CalApi.dll" />
         <Content Include="libs\MMHOOK_Assembly-CSharp.dll" />
-        <Content Include="libs\Mono.Cecil.dll" />
-        <Content Include="libs\MonoMod.Utils.dll" />
-        <Content Include="libs\mscorlib.dll" />
         <Content Include="libs\Rewired_Core.dll" />
-        <Content Include="libs\System.Core.dll" />
-        <Content Include="libs\System.dll" />
-        <Content Include="libs\UnityEngine.CoreModule.dll" />
-        <Content Include="libs\UnityEngine.dll" />
-        <Content Include="libs\UnityEngine.JSONSerializeModule.dll" />
-        <Content Include="libs\UnityEngine.Physics2DModule.dll" />
-        <Content Include="libs\UnityEngine.TextRenderingModule.dll" />
         <Content Include="libs\UnityEngine.UI.dll" />
-        <Content Include="libs\UnityEngine.UIModule.dll" />
     </ItemGroup>
     <ItemGroup>
-        <Reference Include="0Harmony, Version=2.5.5.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>libs\0Harmony.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
         <Reference Include="Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>libs\Assembly-CSharp.dll</HintPath>
-          <Private>False</Private>
+            <HintPath>libs\Assembly-CSharp.dll</HintPath>
+            <Private>False</Private>
         </Reference>
-        <Reference Include="BepInEx, Version=5.4.17.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>libs\BepInEx.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="CalApi, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>libs\CalApi.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="Lidgren.Network, Version=2012.1.7.0, Culture=neutral, PublicKeyToken=null">
-            <HintPath>..\packages\Lidgren.Network.1.0.2\lib\net451\Lidgren.Network.dll</HintPath>
+        <Reference Include="CalApi, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
+            <HintPath>libs\CalApi.dll</HintPath>
+            <Private>False</Private>
         </Reference>
         <Reference Include="MMHOOK_Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>libs\MMHOOK_Assembly-CSharp.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="Mono.Cecil, Version=0.10.4.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e">
-          <HintPath>libs\Mono.Cecil.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="MonoMod.Utils, Version=21.9.19.1, Culture=neutral, PublicKeyToken=null">
-          <HintPath>libs\MonoMod.Utils.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
-          <HintPath>libs\mscorlib.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="NBrigadier, Version=1.0.17.5, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\packages\NBrigadier.1.0.17.5\lib\net461\NBrigadier.dll</HintPath>
-          <Private>True</Private>
+            <HintPath>libs\MMHOOK_Assembly-CSharp.dll</HintPath>
+            <Private>False</Private>
         </Reference>
         <Reference Include="Rewired_Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>libs\Rewired_Core.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
-          <HintPath>libs\System.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="System.Core, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
-          <HintPath>libs\System.Core.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>libs\UnityEngine.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>libs\UnityEngine.CoreModule.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="UnityEngine.JSONSerializeModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>libs\UnityEngine.JSONSerializeModule.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="UnityEngine.Physics2DModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>libs\UnityEngine.Physics2DModule.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="UnityEngine.TextRenderingModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>libs\UnityEngine.TextRenderingModule.dll</HintPath>
-          <Private>False</Private>
+            <HintPath>libs\Rewired_Core.dll</HintPath>
+            <Private>False</Private>
         </Reference>
         <Reference Include="UnityEngine.UI, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>libs\UnityEngine.UI.dll</HintPath>
-          <Private>False</Private>
-        </Reference>
-        <Reference Include="UnityEngine.UIModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>libs\UnityEngine.UIModule.dll</HintPath>
-          <Private>False</Private>
+            <HintPath>libs\UnityEngine.UI.dll</HintPath>
+            <Private>False</Private>
         </Reference>
     </ItemGroup>
-    <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-    <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-         Other similar extension points exist, see Microsoft.Common.targets.
-    <Target Name="BeforeBuild">
-    </Target>
-    <Target Name="AfterBuild">
-    </Target>
-    -->
-
+    <ItemGroup>
+        <PackageReference Include="BepInEx.Analyzers" Version="1.0.7" PrivateAssets="all" />
+        <PackageReference Include="BepInEx.Core" Version="5.4.16" />
+        <PackageReference Include="UnityEngine.Modules" Version="2018.4.36" IncludeAssets="compile" />
+        <PackageReference Include="Lidgren.Network" Version="1.0.2" />
+        <PackageReference Include="NBrigadier" Version="1.0.17.5" />
+    </ItemGroup>
 </Project>

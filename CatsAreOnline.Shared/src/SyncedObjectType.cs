@@ -1,6 +1,6 @@
-﻿namespace CatsAreOnline.Shared {
-    public enum SyncedObjectType : byte {
-        Cat,
-        Companion
-    }
+﻿namespace CatsAreOnline.Shared;
+
+public enum SyncedObjectType : byte {
+    Cat,
+    Companion
 }
