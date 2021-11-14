@@ -64,7 +64,9 @@ public class Client {
                 _restoreFollowPlayerHead = FollowPlayer.followPlayerHead;
                 _restoreFollowTarget = FollowPlayer.customFollowTarget;
                 FollowPlayer.followPlayerHead = false;
-                FollowPlayer.customFollowTarget = _syncedObjectRegistry[value.controlling].transform;
+                SyncedObject syncedObject = _syncedObjectRegistry[value.controlling];
+                FollowPlayer.customFollowTarget =
+                    syncedObject.renderer ? syncedObject.renderer!.transform : syncedObject.transform;
             }
         }
     }
