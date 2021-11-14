@@ -12,7 +12,7 @@ using UnityEngine;
 namespace CatsAreOnline.SyncedObjects;
 
 public abstract class SyncedObjectState {
-    public Client? client { get; set; }
+    public Client client { get; set; } = null!;
 
     protected State movementCatState { get; set; }
 

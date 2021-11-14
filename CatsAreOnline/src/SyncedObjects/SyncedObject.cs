@@ -22,7 +22,7 @@ public abstract class SyncedObject : MonoBehaviour {
     }
 
     public Guid id { get; protected set; }
-    public Player? owner { get; protected set; }
+    public Player owner { get; protected set; } = null!;
     public Text? nameTag { get; set; }
     public SpriteRenderer? renderer { get; set; }
     public Rigidbody2D? rigidbody { get; set; }
@@ -96,7 +96,6 @@ public abstract class SyncedObject : MonoBehaviour {
     }
 
     public virtual void UpdateLocation() {
-        if(owner is null || state.client is null) return;
         bool sameRoom = state.client.ownPlayer.LocationEqual(owner);
         bool own = owner.username == state.client.ownPlayer.username;
         gameObject.SetActive(sameRoom);

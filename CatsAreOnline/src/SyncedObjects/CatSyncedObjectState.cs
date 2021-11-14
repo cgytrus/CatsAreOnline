@@ -35,7 +35,6 @@ public class CatSyncedObjectState : SyncedObjectState {
     private bool _iceChanged;
 
     public override void Update() {
-        if(client is null) return;
         if(Pipe.catInPipe) {
             scale = State.Liquid.GetScale();
             color = MultiplayerPlugin.capturedData.catPipeColor;
