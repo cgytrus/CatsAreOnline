@@ -22,6 +22,7 @@ namespace CatsAreOnline;
 
 [BepInPlugin("mod.cgytrus.plugins.calOnline", "Cats are Online", "0.5.2")]
 [BepInDependency("mod.cgytrus.plugins.calapi", "0.2.2")]
+[DefaultExecutionOrder(int.MaxValue)]
 internal class MultiplayerPlugin : BaseUnityPlugin {
     public static CapturedData capturedData { get; private set; } = null!;
     public static ConfigEntry<bool>? connected { get; private set; }
