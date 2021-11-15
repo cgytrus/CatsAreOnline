@@ -28,10 +28,10 @@ public class Client {
         }
     }
 
-    public bool playerCollisions {
-        get => _playerCollisions;
+    public bool interactions {
+        get => _interactions;
         set {
-            _playerCollisions = value;
+            _interactions = value;
             // ReSharper disable once ForeachCanBePartlyConvertedToQueryUsingAnotherGetEnumerator
             foreach(KeyValuePair<Guid, SyncedObject> syncedObject in _syncedObjectRegistry)
                 syncedObject.Value.UpdateLocation();
@@ -85,7 +85,7 @@ public class Client {
     private readonly MessageHandler _messageHandler;
 
     private bool _displayOwnCat;
-    private bool _playerCollisions;
+    private bool _interactions;
 
     private Player? _spectating;
     private bool _restoreFollowPlayerHead;

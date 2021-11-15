@@ -31,7 +31,7 @@ public class CompanionSyncedObject : SyncedObject {
     public override void UpdateLocation() {
         base.UpdateLocation();
         if(collider)
-            collider!.enabled = owner.username != state.client.ownPlayer.username && state.client.playerCollisions;
+            collider!.enabled = owner.username != state.client.ownPlayer.username && state.client.interactions;
         if(renderer) renderer!.sprite = MultiplayerPlugin.capturedData.companionSprite;
     }
 

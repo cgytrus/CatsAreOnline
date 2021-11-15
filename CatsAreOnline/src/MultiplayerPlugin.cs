@@ -110,8 +110,8 @@ internal class MultiplayerPlugin : BaseUnityPlugin {
         _client.displayOwnCat = _displayOwnCat.Value;
         _displayOwnCat.SettingChanged += (_, _) => _client.displayOwnCat = _displayOwnCat.Value;
 
-        _client.playerCollisions = _interactions.Value;
-        _interactions.SettingChanged += (_, _) => _client.playerCollisions = _interactions.Value;
+        _client.interactions = _interactions.Value;
+        _interactions.SettingChanged += (_, _) => _client.interactions = _interactions.Value;
 
         _client.attachOwnNameTag = _displayOwnCat.Value;
         _attachOwnNameTag.SettingChanged += (_, _) => _client.attachOwnNameTag = _attachOwnNameTag.Value;

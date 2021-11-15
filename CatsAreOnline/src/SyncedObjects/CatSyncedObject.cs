@@ -58,7 +58,7 @@ public class CatSyncedObject : SyncedObject {
     protected override void RemovePreLatestDelta() => _pendingDeltas.RemoveAt(_pendingDeltas.Count - 2);
 
     private void UpdateColliders() {
-        bool enableAnyCollider = owner.username != state.client.ownPlayer.username && state.client.playerCollisions;
+        bool enableAnyCollider = owner.username != state.client.ownPlayer.username && state.client.interactions;
         if(catCollider) catCollider!.enabled = enableAnyCollider && !((CatSyncedObjectState)state).ice;
         if(iceCollider) iceCollider!.enabled = enableAnyCollider && ((CatSyncedObjectState)state).ice;
     }
