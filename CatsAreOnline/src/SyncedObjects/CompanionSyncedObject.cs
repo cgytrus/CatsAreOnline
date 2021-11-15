@@ -69,4 +69,14 @@ public class CompanionSyncedObject : SyncedObject {
 
         return companion;
     }
+
+    public override void UpdateNameTagPosition(Camera camera) {
+        if(!state.client.attachOwnNameTag || owner.username != state.client.ownPlayer.username ||
+           state.client.companionState is null) {
+            base.UpdateNameTagPosition(camera);
+            return;
+        }
+        Vector2 position = state.client.companionState.position;
+        SetNameTagPosition(camera, position);
+    }
 }

@@ -179,17 +179,20 @@ public abstract class SyncedObject : MonoBehaviour {
         return nameTagText;
     }
 
-    public void UpdateNameTagPosition(Camera nameTagCamera) {
-        Vector3 playerPos = renderer ? renderer!.transform.position : transform.position;
+    public virtual void UpdateNameTagPosition(Camera camera) {
+        Vector3 position = renderer ? renderer!.transform.position : transform.position;
+        SetNameTagPosition(camera, position);
+    }
 
+    protected void SetNameTagPosition(Camera camera, Vector2 position) {
         if(!this.nameTag) return;
         Text nameTag = this.nameTag!;
 
         float horTextExtent = nameTag.preferredWidth * 0.5f;
         float vertTextExtent = nameTag.preferredHeight;
 
-        Vector3 camPos = nameTagCamera.transform.position;
-        float vertExtent = nameTagCamera.orthographicSize;
+        Vector3 camPos = camera.transform.position;
+        float vertExtent = camera.orthographicSize;
         float horExtent = vertExtent * Screen.width / Screen.height;
         float minX = camPos.x - horExtent + horTextExtent + 0.5f;
         float maxX = camPos.x + horExtent - horTextExtent - 0.5f;
@@ -198,8 +201,8 @@ public abstract class SyncedObject : MonoBehaviour {
 
         float scale = state.scale;
         nameTag.rectTransform.anchoredPosition =
-            new Vector2(Mathf.Clamp(playerPos.x + _nameTagOffset.x * scale, minX, maxX),
-                Mathf.Clamp(playerPos.y + _nameTagOffset.y * scale, minY, maxY));
+            new Vector2(Mathf.Clamp(position.x + _nameTagOffset.x * scale, minX, maxX),
+                Mathf.Clamp(position.y + _nameTagOffset.y * scale, minY, maxY));
     }
 
     public void Remove() {

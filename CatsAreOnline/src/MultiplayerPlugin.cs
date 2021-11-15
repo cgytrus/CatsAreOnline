@@ -31,6 +31,7 @@ internal class MultiplayerPlugin : BaseUnityPlugin {
     private ConfigEntry<string> _address;
     private ConfigEntry<bool> _displayOwnCat;
     private ConfigEntry<bool> _interactions;
+    private ConfigEntry<bool> _attachOwnNameTag;
     private ConfigEntry<KeyboardShortcut> _toggleChat;
     private ConfigEntry<int> _chatCapacity;
     private ConfigEntry<int> _historyCapacity;
@@ -79,6 +80,7 @@ internal class MultiplayerPlugin : BaseUnityPlugin {
         _address = Config.Bind("General", "Address", "localhost", "");
         _displayOwnCat = Config.Bind("General", "Display Own Cat", false, "");
         _interactions = Config.Bind("General", "Interactions", false, "[EXPERIMENTAL]");
+        _attachOwnNameTag = Config.Bind("General", "Attach Own Name Tag", true, "");
         _toggleChat = Config.Bind("General", "Toggle Chat Button", new KeyboardShortcut(KeyCode.T), "");
         _chatCapacity = Config.Bind("Chat", "Chat Capacity", 10,
             "Maximum amount of chat messages that can be displayed at the same time");
@@ -110,6 +112,9 @@ internal class MultiplayerPlugin : BaseUnityPlugin {
 
         _client.playerCollisions = _interactions.Value;
         _interactions.SettingChanged += (_, _) => _client.playerCollisions = _interactions.Value;
+
+        _client.attachOwnNameTag = _displayOwnCat.Value;
+        _attachOwnNameTag.SettingChanged += (_, _) => _client.attachOwnNameTag = _attachOwnNameTag.Value;
 
         Chat.Chat.messagesCapacity = _chatCapacity.Value;
         _chatCapacity.SettingChanged += (_, _) => Chat.Chat.messagesCapacity = _chatCapacity.Value;

@@ -38,6 +38,8 @@ public class Client {
         }
     }
 
+    public bool attachOwnNameTag { get; set; }
+
     public RectTransform? nameTags { get; private set; }
 
     public bool canConnect => MultiplayerPlugin.capturedData.catPartManager &&

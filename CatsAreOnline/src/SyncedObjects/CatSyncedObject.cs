@@ -95,4 +95,13 @@ public class CatSyncedObject : SyncedObject {
         cat.UpdateLocation();
         return cat;
     }
+
+    public override void UpdateNameTagPosition(Camera camera) {
+        if(!state.client.attachOwnNameTag || owner.username != state.client.ownPlayer.username) {
+            base.UpdateNameTagPosition(camera);
+            return;
+        }
+        Vector2 position = state.client.catState.position;
+        SetNameTagPosition(camera, position);
+    }
 }
