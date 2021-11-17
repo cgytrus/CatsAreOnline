@@ -111,7 +111,7 @@ public class Client {
         _restoreFollowPlayerHead = FollowPlayer.followPlayerHead;
         _restoreFollowTarget = FollowPlayer.customFollowTarget;
 
-        NetPeerConfiguration config = new("mod.cgytrus.plugins.calOnline");
+        NetPeerConfiguration config = new(SharedConfig.AppId);
 
         config.EnableMessageType(NetIncomingMessageType.ConnectionApproval);
         config.EnableMessageType(NetIncomingMessageType.UnconnectedData);

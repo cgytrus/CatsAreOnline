@@ -57,7 +57,7 @@ public static class Server {
     }
 
     private static void Initialize() {
-        NetPeerConfiguration peerConfig = new("mod.cgytrus.plugins.calOnline");
+        NetPeerConfiguration peerConfig = new(SharedConfig.AppId);
 
         Console.ForegroundColor = ConsoleColor.DarkGray;
         Console.WriteLine("Initializing config");
@@ -65,7 +65,7 @@ public static class Server {
 
         config = new Config("config.json");
         config.Load();
-        config.AddValue("port", new ConfigValue<int>(DefaultConfig.Port)).valueChanged += (_, _) => {
+        config.AddValue("port", new ConfigValue<int>(SharedConfig.Port)).valueChanged += (_, _) => {
             Console.ResetColor();
             Console.WriteLine("Port was changed, this requires a server restart to take effect!");
         };
@@ -96,8 +96,8 @@ public static class Server {
         peerConfig.EnableMessageType(NetIncomingMessageType.ConnectionLatencyUpdated);
 
 #if DEBUG
-                peerConfig.EnableMessageType(NetIncomingMessageType.DebugMessage);
-                peerConfig.EnableMessageType(NetIncomingMessageType.VerboseDebugMessage);
+        peerConfig.EnableMessageType(NetIncomingMessageType.DebugMessage);
+        peerConfig.EnableMessageType(NetIncomingMessageType.VerboseDebugMessage);
 #else
         peerConfig.DisableMessageType(NetIncomingMessageType.DebugMessage);
         peerConfig.DisableMessageType(NetIncomingMessageType.VerboseDebugMessage);
