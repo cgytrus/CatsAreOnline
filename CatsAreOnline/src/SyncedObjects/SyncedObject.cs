@@ -21,6 +21,8 @@ public abstract class SyncedObject : MonoBehaviour {
         public MultipleArrivalsHandling multipleArrivalsHandling { get; set; }
     }
 
+    public static bool debugMode { get; set; }
+
     public Guid id { get; protected set; }
     public Player owner { get; protected set; } = null!;
     public Text? nameTag { get; set; }
@@ -49,11 +51,10 @@ public abstract class SyncedObject : MonoBehaviour {
         if(time - max > interpolationSettings.extrapolationTime)
             t = (duration + interpolationSettings.extrapolationTime) / duration;
 
-        // remove old states
-        int removeCount = index - 3;
-        if(removeCount > 0) _pendingTimes.RemoveRange(0, removeCount);
+        Interpolate(index, t);
+        RemoveOldStates(index - 3);
 
-        Interpolate(index, removeCount, t);
+        if(debugMode) DrawInterpolationDebug(index, index + 1);
     }
 
     private int GetCurrentPendingTimeIndex(float time) {
@@ -66,10 +67,18 @@ public abstract class SyncedObject : MonoBehaviour {
         return Math.Min(currentPendingTimeIndex, _pendingTimes.Count - 2);
     }
 
-    protected abstract void Interpolate(int index, int removeCount, float t);
+    protected abstract void Interpolate(int index, float t);
+
+    protected virtual void DrawInterpolationDebug(int startCurrent, int endCurrent) { }
+
+    protected virtual void RemoveOldStates(int removeCount) {
+        if(removeCount <= 0) return;
+        _pendingTimes.RemoveRange(0, removeCount);
+        specialTimes.RemoveWhere(time => !_pendingTimes.Contains(time));
+    }
 
     protected virtual void SetPosition(Vector2 position, Vector2 interpolatedPosition) {
-        state.position = position;
+        state.position = interpolatedPosition;
         transform.position = position;
         if(renderer) renderer!.transform.position = interpolatedPosition;
     }

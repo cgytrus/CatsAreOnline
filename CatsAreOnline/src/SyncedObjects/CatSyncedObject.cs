@@ -7,6 +7,8 @@ using Lidgren.Network;
 
 using UnityEngine;
 
+using Gizmos = Popcron.Gizmos;
+
 namespace CatsAreOnline.SyncedObjects;
 
 public class CatSyncedObject : SyncedObject {
@@ -16,7 +18,7 @@ public class CatSyncedObject : SyncedObject {
 
     private readonly List<CatSyncedObjectStateDelta> _pendingDeltas = new(8);
 
-    protected override void Interpolate(int index, int removeCount, float t) {
+    protected override void Interpolate(int index, float t) {
         CatSyncedObjectStateDelta min = _pendingDeltas[index];
         CatSyncedObjectStateDelta max = _pendingDeltas[index + 1];
         CatSyncedObjectStateDelta latest = _pendingDeltas[_pendingDeltas.Count - 1];
@@ -26,7 +28,35 @@ public class CatSyncedObject : SyncedObject {
         if(max.scale != state.scale) SetScale(max.scale);
         SetRotation(latest.rotation, Mathf.LerpUnclamped(min.rotation, max.rotation, t));
         if(max.ice != ((CatSyncedObjectState)state).ice) SetIce(max.ice);
+    }
 
+    protected override void DrawInterpolationDebug(int startCurrent, int endCurrent) {
+        Vector3 startCurrentPos = Vector3.zero;
+        for(int i = 0; i < _pendingDeltas.Count; i++) {
+            CatSyncedObjectStateDelta delta = _pendingDeltas[i];
+
+            if(i == startCurrent) startCurrentPos = delta.position;
+            if(i == endCurrent) Gizmos.Line(startCurrentPos, delta.position, Color.blue);
+            else if(i > 0) Gizmos.Line(_pendingDeltas[i - 1].position, delta.position, Color.red);
+
+            Color color = Color.red;
+            color.r *= (i + 1) / (float)_pendingDeltas.Count;
+
+            if(i == startCurrent || i == endCurrent) {
+                color.r = 0f;
+                color.g = 1f;
+            }
+
+            Gizmos.Circle(delta.position, delta.scale / Cat.State.Normal.GetScale(), Quaternion.identity, color);
+            Gizmos.Circle(delta.position, 0.1f, Quaternion.identity, color);
+        }
+
+        Gizmos.Circle(state.position, 0.1f, Quaternion.identity, Color.blue);
+        Gizmos.Line(startCurrentPos, state.position, new Color(0.2f, 0.2f, 1f));
+    }
+
+    protected override void RemoveOldStates(int removeCount) {
+        base.RemoveOldStates(removeCount);
         if(removeCount > 0) _pendingDeltas.RemoveRange(0, removeCount);
     }
 

@@ -7,6 +7,8 @@ using Lidgren.Network;
 
 using UnityEngine;
 
+using Gizmos = Popcron.Gizmos;
+
 namespace CatsAreOnline.SyncedObjects;
 
 public class CompanionSyncedObject : SyncedObject {
@@ -15,7 +17,7 @@ public class CompanionSyncedObject : SyncedObject {
 
     private readonly List<CompanionSyncedObjectStateDelta> _pendingDeltas = new(8);
 
-    protected override void Interpolate(int index, int removeCount, float t) {
+    protected override void Interpolate(int index, float t) {
         CompanionSyncedObjectStateDelta min = _pendingDeltas[index];
         CompanionSyncedObjectStateDelta max = _pendingDeltas[index + 1];
         CompanionSyncedObjectStateDelta latest = _pendingDeltas[_pendingDeltas.Count - 1];
@@ -24,7 +26,34 @@ public class CompanionSyncedObject : SyncedObject {
         if(max.color != state.color) SetColor(max.color);
         if(max.scale != state.scale) SetScale(max.scale);
         SetRotation(latest.rotation, Mathf.LerpUnclamped(min.rotation, max.rotation, t));
+    }
 
+    protected override void DrawInterpolationDebug(int startCurrent, int endCurrent) {
+        Vector3 startCurrentPos = Vector3.zero;
+        for(int i = 0; i < _pendingDeltas.Count; i++) {
+            CompanionSyncedObjectStateDelta delta = _pendingDeltas[i];
+
+            if(i == startCurrent) startCurrentPos = delta.position;
+            if(i == endCurrent) Gizmos.Line(startCurrentPos, delta.position, Color.blue);
+            else if(i > 0) Gizmos.Line(_pendingDeltas[i - 1].position, delta.position, Color.red);
+
+            Color color = Color.red;
+            color.r *= (i + 1) / (float)_pendingDeltas.Count;
+
+            if(i == startCurrent || i == endCurrent) {
+                color.r = 0f;
+                color.g = 1f;
+            }
+
+            Gizmos.Square(delta.position, delta.scale, color);
+            Gizmos.Square(delta.position, 0.1f, color);
+        }
+
+        Gizmos.Square(state.position, 0.1f, Color.blue);
+    }
+
+    protected override void RemoveOldStates(int removeCount) {
+        base.RemoveOldStates(removeCount);
         if(removeCount > 0) _pendingDeltas.RemoveRange(0, removeCount);
     }
 

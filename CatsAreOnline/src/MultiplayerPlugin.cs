@@ -40,9 +40,11 @@ internal class MultiplayerPlugin : BaseUnityPlugin {
     private ConfigEntry<float> _messageFadeOutDelay;
     private ConfigEntry<float> _messageFadeOutSpeed;
 
+    private ConfigEntry<bool> _debugMode;
     private ConfigEntry<float> _remoteUpdateTime;
     private ConfigEntry<float> _interpolationDelay;
     private ConfigEntry<float> _extrapolationTime;
+    private ConfigEntry<float> _extrapolationCorrectionTime;
     private ConfigEntry<SyncedObject.InterpolationSettings.MultipleArrivalsHandling>
         _interpolationMultipleArrivalsHandling;
 
@@ -91,6 +93,7 @@ internal class MultiplayerPlugin : BaseUnityPlugin {
         _messageFadeOutDelay = Config.Bind("Chat", "Message Fade Out Delay", 5f, "");
         _messageFadeOutSpeed = Config.Bind("Chat", "Message Fade Out Speed", 1f, "");
 
+        _debugMode = Config.Bind("Advanced", "Debug Mode", false, "");
         _remoteUpdateTime = Config.Bind("Advanced", "Remote Update Time", 0.05f, "");
         _interpolationDelay = Config.Bind("Advanced", "Interpolation Delay", 0.1f, "");
         _extrapolationTime = Config.Bind("Advanced", "Extrapolation Time", 0.25f, "");
@@ -131,6 +134,9 @@ internal class MultiplayerPlugin : BaseUnityPlugin {
         _updateTime = _remoteUpdateTime.Value;
         _remoteUpdateTime.SettingChanged +=
             (_, _) => _updateTime = _remoteUpdateTime.Value;
+
+        SyncedObject.debugMode = _debugMode.Value;
+        _debugMode.SettingChanged += (_, _) => SyncedObject.debugMode = _debugMode.Value;
 
         SyncedObject.interpolationSettings.delay = _interpolationDelay.Value;
         _interpolationDelay.SettingChanged +=
