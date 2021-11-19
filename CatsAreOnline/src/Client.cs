@@ -234,6 +234,7 @@ public class Client {
 
         NetOutgoingMessage message = PrepareMessage(DataType.SyncedObjectChangedState);
         message.Write(id.ToString());
+        message.WriteTime(true);
         state.WriteDeltaToMessage(message);
         SendMessageToServer(message, state.deliveryMethod);
     }

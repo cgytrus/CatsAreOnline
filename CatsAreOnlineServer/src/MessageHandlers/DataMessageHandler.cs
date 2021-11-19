@@ -175,6 +175,8 @@ public class DataMessageHandler {
         if(!syncedObjectRegistry.TryGetValue(id, out SyncedObject syncedObject)) return;
         if(syncedObject.owner != player) return;
 
+        double time = message.ReadTime(true);
+
         NetOutgoingMessage notifyMessage = null;
         NetDeliveryMethod deliveryMethod = DeliveryMethods.Global;
 
@@ -183,6 +185,7 @@ public class DataMessageHandler {
                 notifyMessage = server.CreateMessage();
                 notifyMessage.Write((byte)DataType.SyncedObjectChangedState);
                 notifyMessage.Write(syncedObject.id.ToString());
+                notifyMessage.WriteTime(time, true);
             }
 
             syncedObject.ReadChangedState(message, notifyMessage, stateTypeByte, ref deliveryMethod);

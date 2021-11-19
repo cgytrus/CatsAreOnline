@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 
-using CalApi.API;
-
 using CatsAreOnline.Shared;
 
 using Lidgren.Network;
@@ -14,11 +12,8 @@ namespace CatsAreOnline.SyncedObjects;
 
 public abstract class SyncedObject : MonoBehaviour {
     public class InterpolationSettings {
-        public enum MultipleArrivalsHandling { Drop, Rearrange }
-
         public float delay { get; set; }
         public float extrapolationTime { get; set; }
-        public MultipleArrivalsHandling multipleArrivalsHandling { get; set; }
     }
 
     public static bool debugMode { get; set; }
@@ -74,7 +69,6 @@ public abstract class SyncedObject : MonoBehaviour {
     protected virtual void RemoveOldStates(int removeCount) {
         if(removeCount <= 0) return;
         _pendingTimes.RemoveRange(0, removeCount);
-        specialTimes.RemoveWhere(time => !_pendingTimes.Contains(time));
     }
 
     protected virtual void SetPosition(Vector2 position, Vector2 interpolatedPosition) {
@@ -95,7 +89,7 @@ public abstract class SyncedObject : MonoBehaviour {
     }
 
     protected virtual void SetRotation(float rotation, float interpolatedRotation) {
-        state.rotation = rotation;
+        state.rotation = interpolatedRotation;
         if(rigidbody) rigidbody!.MoveRotation(rotation);
         if(!renderer) return;
         Transform transform = renderer!.transform;
@@ -115,21 +109,9 @@ public abstract class SyncedObject : MonoBehaviour {
     }
 
     public void ReadStateDelta(NetIncomingMessage message) {
-        float time = (float)message.ReceiveTime;
+        float time = (float)message.ReadTime(true);
         _pendingTimes.Add(time);
         ReadDelta(message);
-        switch(interpolationSettings.multipleArrivalsHandling) {
-            case InterpolationSettings.MultipleArrivalsHandling.Drop:
-                if(_pendingTimes.Count < 2 || time - _pendingTimes[_pendingTimes.Count - 2] != 0f) return;
-                _pendingTimes.RemoveAt(_pendingTimes.Count - 2);
-                RemovePreLatestDelta();
-                break;
-            case InterpolationSettings.MultipleArrivalsHandling.Rearrange:
-                if(_pendingTimes.Count < 3 || time - _pendingTimes[_pendingTimes.Count - 2] != 0f) return;
-                float half = (_pendingTimes[_pendingTimes.Count - 2] - _pendingTimes[_pendingTimes.Count - 3]) / 2f;
-                _pendingTimes[_pendingTimes.Count - 2] -= half;
-                break;
-        }
     }
 
     protected abstract void ReadDelta(NetBuffer buffer);

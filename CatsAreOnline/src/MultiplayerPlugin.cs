@@ -44,9 +44,6 @@ internal class MultiplayerPlugin : BaseUnityPlugin {
     private ConfigEntry<float> _remoteUpdateTime;
     private ConfigEntry<float> _interpolationDelay;
     private ConfigEntry<float> _extrapolationTime;
-    private ConfigEntry<float> _extrapolationCorrectionTime;
-    private ConfigEntry<SyncedObject.InterpolationSettings.MultipleArrivalsHandling>
-        _interpolationMultipleArrivalsHandling;
 
     private readonly Client _client;
 
@@ -95,11 +92,8 @@ internal class MultiplayerPlugin : BaseUnityPlugin {
 
         _debugMode = Config.Bind("Advanced", "Debug Mode", false, "");
         _remoteUpdateTime = Config.Bind("Advanced", "Remote Update Time", 0.05f, "");
-        _interpolationDelay = Config.Bind("Advanced", "Interpolation Delay", 0.1f, "");
+        _interpolationDelay = Config.Bind("Advanced", "Interpolation Delay", 0.2f, "");
         _extrapolationTime = Config.Bind("Advanced", "Extrapolation Time", 0.25f, "");
-        _interpolationMultipleArrivalsHandling = Config.Bind("Advanced", "Multiple Arrivals Handling",
-            SyncedObject.InterpolationSettings.MultipleArrivalsHandling.Drop,
-            "What to do when multiple state change messages arrive at the same time.");
     }
 
     private void SetupSettings() {
@@ -145,11 +139,6 @@ internal class MultiplayerPlugin : BaseUnityPlugin {
         SyncedObject.interpolationSettings.extrapolationTime = _extrapolationTime.Value;
         _extrapolationTime.SettingChanged +=
             (_, _) => SyncedObject.interpolationSettings.extrapolationTime = _extrapolationTime.Value;
-
-        SyncedObject.interpolationSettings.multipleArrivalsHandling = _interpolationMultipleArrivalsHandling.Value;
-        _interpolationMultipleArrivalsHandling.SettingChanged +=
-            (_, _) => SyncedObject.interpolationSettings.multipleArrivalsHandling =
-                _interpolationMultipleArrivalsHandling.Value;
     }
 
     private void ApplyHooks() {
