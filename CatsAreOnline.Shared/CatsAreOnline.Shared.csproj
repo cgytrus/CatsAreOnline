@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFramework>net471</TargetFramework>
+        <TargetFrameworks>net471;net6</TargetFrameworks>
         <LangVersion>10</LangVersion>
         <AssemblyTitle>CatsAreOnline.Shared</AssemblyTitle>
         <Nullable>enable</Nullable>
