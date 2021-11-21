@@ -19,9 +19,9 @@ namespace CatsAreOnlineServer;
 
 public static class Server {
 #if DEBUG
-        public const string Version = "0.5.1-debug";
+    public const string Version = "0.5.2-debug";
 #else
-    public const string Version = "0.5.1";
+    public const string Version = "0.5.2";
 #endif
     // ReSharper disable once MemberCanBePrivate.Global
     public static TimeSpan targetTickTime { get; private set; }
