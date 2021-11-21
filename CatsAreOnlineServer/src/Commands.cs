@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 
+using CatsAreOnline.Shared;
+
 using CatsAreOnlineServer.Configuration;
 
 using Lidgren.Network;
@@ -48,13 +50,15 @@ public class Commands {
 
         _descriptions.Add(dispatcher.Register(LiteralArgumentBuilder<Player>.Literal("info")
             .Executes(context => {
+                string protocol = SharedConfig.Protocol.ToString(CultureInfo.InvariantCulture);
+                string protocolFull = $"protocol v{protocol}";
                 string commandCount = dispatcher.Root.Children.Count.ToString(CultureInfo.InvariantCulture);
                 string playerCount = Server.players.Count.ToString(CultureInfo.InvariantCulture);
                 string uptime = Server.uptime.ToString("%d'd '%h'h '%m'm '%s's'", CultureInfo.InvariantCulture);
                 string ping = ((long)TimeSpan.FromSeconds(context.Source?.latestPing ?? 0f).TotalMilliseconds)
                     .ToString(CultureInfo.InvariantCulture);
 
-                Server.SendChatMessage(null, context.Source, $"<b>INFO:</b> v{Server.Version}");
+                Server.SendChatMessage(null, context.Source, $"<b>INFO:</b> v{Server.Version} ({protocolFull})");
                 Server.SendChatMessage(null, context.Source, $"- <b>{commandCount}</b> commands available");
                 Server.SendChatMessage(null, context.Source, $"- <b>{playerCount}</b> players online");
                 Server.SendChatMessage(null, context.Source, $"- Running for <b>{uptime}</b>");

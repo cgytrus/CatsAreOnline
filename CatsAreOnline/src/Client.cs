@@ -151,6 +151,7 @@ public class Client {
         };
 
         NetOutgoingMessage approval = _client.CreateMessage();
+        approval.Write(SharedConfig.Protocol);
         ownPlayer.Write(approval);
         _client.Connect(ip, approval);
     }

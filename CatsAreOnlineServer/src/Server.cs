@@ -228,7 +228,15 @@ public static class Server {
         reconnectEndPoints.Clear();
     }
 
-    public static string ValidateRegisteringPlayer(string username, string displayName) {
+    public static string ValidateRegisteringPlayer(string username, string displayName, int protocol) {
+        if(protocol != SharedConfig.Protocol) {
+            string client = protocol.ToString(CultureInfo.InvariantCulture);
+            string server = SharedConfig.Protocol.ToString(CultureInfo.InvariantCulture);
+            string ending = protocol < SharedConfig.Protocol ? "please update your client" :
+                "please connect with an older client or ask the administrator of the server to update";
+            return $"Client protocol ({client}) version doesn't match server protocol version ({server}), {ending}";
+        }
+
         int maxUsernameLength = config.GetValue<int>("maxUsernameLength").value;
         if(username.Length > maxUsernameLength) {
             string maxLength = maxUsernameLength.ToString(CultureInfo.InvariantCulture);

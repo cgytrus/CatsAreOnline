@@ -40,6 +40,7 @@ public class MessageHandler {
 
     private void ConnectionApprovalReceived(NetIncomingMessage message) {
         IPEndPoint ip = message.SenderEndPoint;
+        int protocol = message.ReadInt32();
         string username = message.ReadString();
         string displayName = message.ReadString();
 
@@ -47,7 +48,7 @@ public class MessageHandler {
         Console.WriteLine($"Registering player {username} @ {ip}");
         Console.ResetColor();
 
-        string error = Server.ValidateRegisteringPlayer(username, displayName);
+        string error = Server.ValidateRegisteringPlayer(username, displayName, protocol);
         if(error is not null) {
             message.SenderConnection.Deny(error);
             Console.ForegroundColor = ConsoleColor.Red;
