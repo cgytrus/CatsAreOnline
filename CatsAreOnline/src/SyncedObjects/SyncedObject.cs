@@ -14,6 +14,8 @@ public abstract class SyncedObject : MonoBehaviour {
     public class InterpolationSettings {
         public float delay { get; set; }
         public float extrapolationTime { get; set; }
+        public float maxTimeDelta { get; set; }
+        public float maxTimeDeltaAccelerationThreshold { get; set; }
     }
 
     public static bool debugMode { get; set; }
@@ -30,18 +32,34 @@ public abstract class SyncedObject : MonoBehaviour {
     private readonly Vector2 _nameTagOffset = Vector2.up;
 
     private readonly List<float> _pendingTimes = new(8);
+    private float _interpolationTime = -1f;
+    private bool _pauseInterpolation;
 
     // https://developer.valvesoftware.com/wiki/Source_Multiplayer_Networking#Entity_interpolation
     private void Update() {
-        float time = (float)NetTime.Now - interpolationSettings.delay;
-        int index = GetCurrentPendingTimeIndex(time);
-        if(index < 0 || index + 1 >= _pendingTimes.Count) return;
+        float actualTime = (float)NetTime.Now - interpolationSettings.delay;
+        if(!_pauseInterpolation) {
+            float delta = actualTime - _interpolationTime;
+            if(delta > interpolationSettings.maxTimeDelta && _interpolationTime >= 0f) {
+                float accelerationThreshold = interpolationSettings.maxTimeDeltaAccelerationThreshold;
+                float deltaAcceleration = Mathf.Max(delta - accelerationThreshold + 1f, 1f);
+                delta = interpolationSettings.maxTimeDelta * deltaAcceleration;
+                _interpolationTime += delta;
+            }
+            else _interpolationTime = actualTime;
+        }
+
+        float time = _pauseInterpolation ? actualTime : _interpolationTime;
+
+        int index = Math.Min(GetPendingTimeIndexAt(time), _pendingTimes.Count - 2);
+        if(index < 0) return;
 
         float min = _pendingTimes[index];
         float max = _pendingTimes[index + 1];
 
         float duration = max - min;
         float t = duration == 0f ? 1f : (time - min) / duration;
+        if(t > 1f) _pauseInterpolation = true;
         // extrapolate only for `extrapolationTime`
         if(time - max > interpolationSettings.extrapolationTime)
             t = (duration + interpolationSettings.extrapolationTime) / duration;
@@ -52,14 +70,10 @@ public abstract class SyncedObject : MonoBehaviour {
         if(debugMode) DrawInterpolationDebug(index, index + 1);
     }
 
-    private int GetCurrentPendingTimeIndex(float time) {
-        int currentPendingTimeIndex = -1;
-        for(int i = 0; i < _pendingTimes.Count; i++) {
-            if(_pendingTimes[i] <= time) currentPendingTimeIndex = i;
-            else break;
-        }
-
-        return Math.Min(currentPendingTimeIndex, _pendingTimes.Count - 2);
+    private int GetPendingTimeIndexAt(float time) {
+        int index = _pendingTimes.BinarySearch(time);
+        if(index < 0) index = ~index;
+        return index - 1;
     }
 
     protected abstract void Interpolate(int index, float t);
@@ -110,12 +124,22 @@ public abstract class SyncedObject : MonoBehaviour {
 
     public void ReadStateDelta(NetIncomingMessage message) {
         float time = (float)message.ReadTime(true);
-        _pendingTimes.Add(time);
-        ReadDelta(message);
+
+        int index = GetPendingTimeIndexAt(time) + 1;
+        _pendingTimes.Insert(index, time);
+        AddDelta(index, message);
+
+        if(!_pauseInterpolation) return;
+        _pauseInterpolation = false;
+        time = _interpolationTime;
+
+        index = GetPendingTimeIndexAt(time) + 1;
+        _pendingTimes.Insert(index, time);
+        AddCurrentStateAsDelta(index);
     }
 
-    protected abstract void ReadDelta(NetBuffer buffer);
-    protected abstract void RemovePreLatestDelta();
+    protected abstract void AddDelta(int index, NetBuffer buffer);
+    protected abstract void AddCurrentStateAsDelta(int index);
 
     public static SyncedObject? Create(Client client, SyncedObjectType type, Guid id, Player owner,
         NetBuffer message) {

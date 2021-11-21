@@ -64,13 +64,14 @@ public class CompanionSyncedObject : SyncedObject {
         if(renderer) renderer!.sprite = MultiplayerPlugin.capturedData.companionSprite;
     }
 
-    protected override void ReadDelta(NetBuffer buffer) {
+    protected override void AddDelta(int index, NetBuffer buffer) {
         CompanionSyncedObjectStateDelta useDelta = _pendingDeltas.Count > 0 ? _pendingDeltas[_pendingDeltas.Count - 1] :
             new CompanionSyncedObjectStateDelta((CompanionSyncedObjectState)state);
-        _pendingDeltas.Add(new CompanionSyncedObjectStateDelta(useDelta, buffer));
+        _pendingDeltas.Insert(index, new CompanionSyncedObjectStateDelta(useDelta, buffer));
     }
 
-    protected override void RemovePreLatestDelta() => _pendingDeltas.RemoveAt(_pendingDeltas.Count - 2);
+    protected override void AddCurrentStateAsDelta(int index) =>
+        _pendingDeltas.Insert(index, new CompanionSyncedObjectStateDelta((CompanionSyncedObjectState)state));
 
     public static CompanionSyncedObject Create(Client client, Guid id, Player owner, GameObject obj,
         SpriteRenderer renderer, Rigidbody2D rigidbody,

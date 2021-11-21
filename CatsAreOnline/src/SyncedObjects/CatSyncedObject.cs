@@ -79,13 +79,14 @@ public class CatSyncedObject : SyncedObject {
         UpdateColliders();
     }
 
-    protected override void ReadDelta(NetBuffer buffer) {
+    protected override void AddDelta(int index, NetBuffer buffer) {
         CatSyncedObjectStateDelta useDelta = _pendingDeltas.Count > 0 ? _pendingDeltas[_pendingDeltas.Count - 1] :
             new CatSyncedObjectStateDelta((CatSyncedObjectState)state);
-        _pendingDeltas.Add(new CatSyncedObjectStateDelta(useDelta, buffer));
+        _pendingDeltas.Insert(index, new CatSyncedObjectStateDelta(useDelta, buffer));
     }
 
-    protected override void RemovePreLatestDelta() => _pendingDeltas.RemoveAt(_pendingDeltas.Count - 2);
+    protected override void AddCurrentStateAsDelta(int index) =>
+        _pendingDeltas.Insert(index, new CatSyncedObjectStateDelta((CatSyncedObjectState)state));
 
     private void UpdateColliders() {
         bool enableAnyCollider = owner.username != state.client.ownPlayer.username && state.client.interactions;
