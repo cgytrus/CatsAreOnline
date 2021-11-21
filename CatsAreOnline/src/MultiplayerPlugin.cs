@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Net;
@@ -25,13 +26,15 @@ namespace CatsAreOnline;
 [DefaultExecutionOrder(int.MaxValue)]
 internal class MultiplayerPlugin : BaseUnityPlugin {
     public static CapturedData capturedData { get; private set; } = null!;
-    public static ConfigEntry<bool>? connected { get; private set; }
+
+    private ConfigEntry<string> _address;
     private ConfigEntry<string> _username;
     private ConfigEntry<string> _displayName;
-    private ConfigEntry<string> _address;
+    public static ConfigEntry<bool>? connected { get; private set; }
     private ConfigEntry<bool> _displayOwnCat;
-    private ConfigEntry<bool> _interactions;
     private ConfigEntry<bool> _attachOwnNameTag;
+    private ConfigEntry<bool> _interactions;
+
     private ConfigEntry<KeyboardShortcut> _toggleChat;
     private ConfigEntry<int> _chatCapacity;
     private ConfigEntry<int> _historyCapacity;
@@ -44,8 +47,8 @@ internal class MultiplayerPlugin : BaseUnityPlugin {
     private ConfigEntry<float> _remoteUpdateTime;
     private ConfigEntry<float> _interpolationDelay;
     private ConfigEntry<float> _extrapolationTime;
-    private ConfigEntry<float> _maxInterpolationTimeDelta;
-    private ConfigEntry<float> _maxInterpolationTimeDeltaAccelerationThreshold;
+    private ConfigEntry<float> _interpolationMaxTimeDelta;
+    private ConfigEntry<float> _interpolationMaxTimeDeltaAccelerationThreshold;
 
     private readonly Client _client;
 
@@ -71,33 +74,65 @@ internal class MultiplayerPlugin : BaseUnityPlugin {
         capturedData = new CapturedData(Logger, _client);
     }
 
+    [SuppressMessage("ReSharper", "HeapView.ObjectAllocation")]
     private void CreateSettings() {
         Logger.LogInfo("Creating settings");
 
-        connected = Config.Bind("General", "Connected", false, "");
-        _username = Config.Bind("General", "Username", "", "Your internal name");
-        _displayName = Config.Bind("General", "Display Name", "",
-            "Your name that will be displayed to other players");
-        _address = Config.Bind("General", "Address", "localhost", "");
-        _displayOwnCat = Config.Bind("General", "Display Own Cat", false, "");
-        _interactions = Config.Bind("General", "Interactions", false, "[EXPERIMENTAL]");
-        _attachOwnNameTag = Config.Bind("General", "Attach Own Name Tag", true, "");
-        _toggleChat = Config.Bind("General", "Toggle Chat Button", new KeyboardShortcut(KeyCode.T), "");
-        _chatCapacity = Config.Bind("Chat", "Chat Capacity", 10,
-            "Maximum amount of chat messages that can be displayed at the same time");
-        _historyCapacity = Config.Bind("Chat", "History Capacity", 100,
-            "Maximum amount of chat message texts that are stored in history to be able to resend them");
-        _historyUp = Config.Bind("General", "History Up", new KeyboardShortcut(KeyCode.UpArrow), "");
-        _historyDown = Config.Bind("General", "History Down", new KeyboardShortcut(KeyCode.DownArrow), "");
-        _messageFadeOutDelay = Config.Bind("Chat", "Message Fade Out Delay", 5f, "");
-        _messageFadeOutSpeed = Config.Bind("Chat", "Message Fade Out Speed", 1f, "");
+        _address = Config.Bind("General", "Address", "localhost",
+            new ConfigDescription("", null, new ConfigurationManagerAttributes { Order = 0 }));
+        _username = Config.Bind("General", "Username", "",
+            new ConfigDescription("Internal name used for things like commands", null,
+                new ConfigurationManagerAttributes { Order = -1 }));
+        _displayName = Config.Bind("General", "DisplayName", "",
+            new ConfigDescription("The name that will be displayed to other players", null,
+                new ConfigurationManagerAttributes { Order = -2, DispName = "Display Name" }));
+        connected = Config.Bind("General", "Connected", false,
+            new ConfigDescription("", null, new ConfigurationManagerAttributes { Order = -3 }));
+        _displayOwnCat = Config.Bind("General", "DisplayOwnCat", false,
+            new ConfigDescription("", null,
+                new ConfigurationManagerAttributes { Order = -4, DispName = "Display Own Cat" }));
+        _attachOwnNameTag = Config.Bind("General", "AttachOwnNameTag", true,
+            new ConfigDescription("", null,
+                new ConfigurationManagerAttributes { Order = -5, DispName = "Attach Own Name Tag" }));
+        _interactions = Config.Bind("General", "Interactions", false,
+            new ConfigDescription("[EXPERIMENTAL]", null, new ConfigurationManagerAttributes { Order = -6 }));
 
-        _debugMode = Config.Bind("Advanced", "Debug Mode", false, "");
-        _remoteUpdateTime = Config.Bind("Advanced", "Remote Update Time", 0.05f, "");
-        _interpolationDelay = Config.Bind("Advanced", "Interpolation Delay", 0.2f, "");
-        _extrapolationTime = Config.Bind("Advanced", "Extrapolation Time", 0.25f, "");
-        _maxInterpolationTimeDelta = Config.Bind("Advanced", "Max Interpolation Time Delta", 0.15f, "");
-        _maxInterpolationTimeDeltaAccelerationThreshold = Config.Bind("Advanced", "Max Interpolation Time Delta Acceleration Threshold", 10.0f, "");
+        _toggleChat = Config.Bind("Chat", "ToggleChat", new KeyboardShortcut(KeyCode.T),
+            new ConfigDescription("", null,
+                new ConfigurationManagerAttributes { Order = 0, DispName = "Toggle Chat" }));
+        _chatCapacity = Config.Bind("Chat", "ChatCapacity", 10,
+            new ConfigDescription("Maximum amount of chat messages that can be displayed at the same time", null,
+                new ConfigurationManagerAttributes { Order = -1, DispName = "Chat Capacity" }));
+        _historyCapacity = Config.Bind("Chat", "HistoryCapacity", 100,
+            new ConfigDescription(
+                "Maximum amount of chat message texts that are stored in history to be able to resend them", null,
+                new ConfigurationManagerAttributes { Order = -2, DispName = "History Capacity" }));
+        _historyUp = Config.Bind("Chat", "HistoryUp", new KeyboardShortcut(KeyCode.UpArrow),
+            new ConfigDescription("", null,
+                new ConfigurationManagerAttributes { Order = -3, DispName = "History Up" }));
+        _historyDown = Config.Bind("Chat", "HistoryDown", new KeyboardShortcut(KeyCode.DownArrow),
+            new ConfigDescription("", null,
+                new ConfigurationManagerAttributes { Order = -4, DispName = "History Down" }));
+        _messageFadeOutDelay = Config.Bind("Chat", "MessageFadeOutDelay", 5f,
+            new ConfigDescription("", null,
+                new ConfigurationManagerAttributes { Order = -5, DispName = "Message Fade Out Delay" }));
+        _messageFadeOutSpeed = Config.Bind("Chat", "MessageFadeOutSpeed", 1f,
+            new ConfigDescription("", null,
+                new ConfigurationManagerAttributes { Order = -6, DispName = "Message Fade Out Speed" }));
+
+        _debugMode = Config.Bind("Advanced", "DebugMode", false,
+            new ConfigDescription("", null, new ConfigurationManagerAttributes { Order = 0, IsAdvanced = true }));
+        _remoteUpdateTime = Config.Bind("Advanced", "RemoteUpdateTime", 0.05f,
+            new ConfigDescription("", null, new ConfigurationManagerAttributes { Order = -1, IsAdvanced = true }));
+        _interpolationDelay = Config.Bind("Advanced: Interpolation", "Delay", 0.2f,
+            new ConfigDescription("", null, new ConfigurationManagerAttributes { Order = 0, IsAdvanced = true }));
+        _extrapolationTime = Config.Bind("Advanced: Interpolation", "ExtrapolationTime", 0.25f,
+            new ConfigDescription("", null, new ConfigurationManagerAttributes { Order = -1, IsAdvanced = true }));
+        _interpolationMaxTimeDelta = Config.Bind("Advanced: Interpolation", "MaxTimeDelta", 0.1f,
+            new ConfigDescription("", null, new ConfigurationManagerAttributes { Order = -2, IsAdvanced = true }));
+        _interpolationMaxTimeDeltaAccelerationThreshold = Config.Bind("Advanced: Interpolation",
+            "MaxTimeDeltaAccelerationThreshold", 10.0f,
+            new ConfigDescription("", null, new ConfigurationManagerAttributes { Order = -3, IsAdvanced = true }));
     }
 
     private void SetupSettings() {
@@ -144,15 +179,15 @@ internal class MultiplayerPlugin : BaseUnityPlugin {
         _extrapolationTime.SettingChanged +=
             (_, _) => SyncedObject.interpolationSettings.extrapolationTime = _extrapolationTime.Value;
 
-        SyncedObject.interpolationSettings.maxTimeDelta = _maxInterpolationTimeDelta.Value;
-        _maxInterpolationTimeDelta.SettingChanged +=
-            (_, _) => SyncedObject.interpolationSettings.maxTimeDelta = _maxInterpolationTimeDelta.Value;
+        SyncedObject.interpolationSettings.maxTimeDelta = _interpolationMaxTimeDelta.Value;
+        _interpolationMaxTimeDelta.SettingChanged +=
+            (_, _) => SyncedObject.interpolationSettings.maxTimeDelta = _interpolationMaxTimeDelta.Value;
 
         SyncedObject.interpolationSettings.maxTimeDeltaAccelerationThreshold =
-            _maxInterpolationTimeDeltaAccelerationThreshold.Value;
-        _maxInterpolationTimeDeltaAccelerationThreshold.SettingChanged +=
+            _interpolationMaxTimeDeltaAccelerationThreshold.Value;
+        _interpolationMaxTimeDeltaAccelerationThreshold.SettingChanged +=
             (_, _) => SyncedObject.interpolationSettings.maxTimeDeltaAccelerationThreshold =
-                _maxInterpolationTimeDeltaAccelerationThreshold.Value;
+                _interpolationMaxTimeDeltaAccelerationThreshold.Value;
     }
 
     private void ApplyHooks() {
