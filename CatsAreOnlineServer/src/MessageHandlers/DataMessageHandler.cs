@@ -8,9 +8,13 @@ using CatsAreOnlineServer.SyncedObjects;
 
 using Lidgren.Network;
 
+using NLog;
+
 namespace CatsAreOnlineServer.MessageHandlers;
 
 public class DataMessageHandler {
+    private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+
     public NetServer server { private get; init; }
     public Dictionary<NetConnection, Player> playerRegistry { private get; init; }
     public Dictionary<Guid, SyncedObject> syncedObjectRegistry { private get; init; }
@@ -35,11 +39,7 @@ public class DataMessageHandler {
         DataType type = (DataType)message.ReadByte();
 
         if(_messages.TryGetValue(type, out Action<NetIncomingMessage> action)) action(message);
-        else {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"[WARN] Unknown message type received ({type.ToString()})");
-            Console.ResetColor();
-        }
+        else logger.Warn($"Unknown message type received ({type.ToString()})");
     }
 
     private void PlayerChangedWorldPackReceived(NetIncomingMessage message) {
@@ -201,14 +201,7 @@ public class DataMessageHandler {
 
         string text = message.ReadString();
 
-        Console.WriteLine($"[{player.username}] {text}");
-
-        NetOutgoingMessage resendMessage = server.CreateMessage();
-        resendMessage.Write((byte)DataType.ChatMessage);
-        resendMessage.Write(player.username);
-        resendMessage.Write(text);
-        server.SendMessage(resendMessage, playerRegistry.Select(ply => ply.Value.connection).ToList(),
-            DeliveryMethods.Reliable, 0);
+        Server.SendChatMessageToAll(player, text);
     }
 
     private static void CommandReceived(NetIncomingMessage message) {
@@ -216,9 +209,7 @@ public class DataMessageHandler {
         if(player is null) return;
 
         string command = message.ReadString();
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"Received a command from {player.username} : '{command}'");
-        Console.ResetColor();
+        Server.LogPlayerAction(player, $"Command received: '{command}'");
         Server.ExecuteCommand(player, command);
     }
 

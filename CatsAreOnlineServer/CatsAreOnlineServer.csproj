@@ -9,8 +9,14 @@
           <NoWarn>NU1701</NoWarn>
       </PackageReference>
     <PackageReference Include="NBrigadier" Version="1.0.17.5" />
+    <PackageReference Include="NLog" Version="4.7.12" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CatsAreOnline.Shared\CatsAreOnline.Shared.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="NLog.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 </Project>

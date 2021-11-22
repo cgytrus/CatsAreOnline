@@ -6,9 +6,15 @@ using CatsAreOnlineServer.SyncedObjects;
 
 using Lidgren.Network;
 
+using NLog;
+
 namespace CatsAreOnlineServer.MessageHandlers;
 
 public class MessageHandler {
+    private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+    private static readonly Logger progressLogger = logger.WithProperty("progress", true);
+    private static readonly Logger unhandledLogger = logger.WithProperty("unhandled", true);
+
     public NetServer server { private get; init; }
     public Dictionary<NetConnection, Player> playerRegistry { private get; init; }
     public Dictionary<Guid, SyncedObject> syncedObjectRegistry { private get; init; }
@@ -31,11 +37,7 @@ public class MessageHandler {
 
     public void MessageReceived(NetIncomingMessage message) {
         if(_messages.TryGetValue(message.MessageType, out Action<NetIncomingMessage> action)) action(message);
-        else {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"[UNHANDLED] {message.MessageType.ToString()}");
-            Console.ResetColor();
-        }
+        else unhandledLogger.Info($"[UNHANDLED] {message.MessageType.ToString()}");
     }
 
     private void ConnectionApprovalReceived(NetIncomingMessage message) {
@@ -44,16 +46,12 @@ public class MessageHandler {
         string username = message.ReadString();
         string displayName = message.ReadString();
 
-        Console.ForegroundColor = ConsoleColor.DarkGreen;
-        Console.WriteLine($"Registering player {username} @ {ip}");
-        Console.ResetColor();
+        progressLogger.Info($"Registering player {username} @ {ip}");
 
         string error = Server.ValidateRegisteringPlayer(username, displayName, protocol);
         if(error is not null) {
             message.SenderConnection.Deny(error);
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"Could not register player {username} @ {ip} ({error})");
-            Console.ResetColor();
+            logger.Error($"Could not register player {username} @ {ip} ({error})");
             return;
         }
 
@@ -96,27 +94,11 @@ public class MessageHandler {
         }
     }
 
-    private static void VerboseDebugMessageReceived(NetBuffer message) {
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($"[VERBOSE DEBUG] {message.ReadString()}");
-        Console.ResetColor();
-    }
+    private static void VerboseDebugMessageReceived(NetBuffer message) => logger.Trace(message.ReadString());
 
-    private static void DebugMessageReceived(NetBuffer message) {
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($"[DEBUG] {message.ReadString()}");
-        Console.ResetColor();
-    }
+    private static void DebugMessageReceived(NetBuffer message) => logger.Debug(message.ReadString());
 
-    private static void WarningMessageReceived(NetBuffer message) {
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"[WARN] {message.ReadString()}");
-        Console.ResetColor();
-    }
+    private static void WarningMessageReceived(NetBuffer message) => logger.Warn(message.ReadString());
 
-    private static void ErrorMessageReceived(NetBuffer message) {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"[ERROR] {message.ReadString()}");
-        Console.ResetColor();
-    }
+    private static void ErrorMessageReceived(NetBuffer message) => logger.Error(message.ReadString());
 }

@@ -15,13 +15,22 @@ using CatsAreOnlineServer.SyncedObjects;
 
 using Lidgren.Network;
 
+using NLog;
+
 namespace CatsAreOnlineServer;
 
 public static class Server {
+    private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+    private static readonly Logger successLogger = logger.WithProperty("success", true);
+    private static readonly Logger progressLogger = logger.WithProperty("progress", true);
+    private static readonly Logger actionLogger = LogManager.GetLogger("").WithProperty("layout", "playerAction");
+    private static readonly Logger chatLogger = LogManager.GetLogger("").WithProperty("layout", "chat");
+
+    private const string SemVersion = "0.5.2";
 #if DEBUG
-    public const string Version = "0.5.2-debug";
+    public const string Version = $"{SemVersion}-debug";
 #else
-    public const string Version = "0.5.2";
+    public const string Version = SemVersion;
 #endif
     // ReSharper disable once MemberCanBePrivate.Global
     public static TimeSpan targetTickTime { get; private set; }
@@ -49,6 +58,7 @@ public static class Server {
 
     private static void Main() {
         while(_mainRunning) {
+            LogManager.Configuration = LogManager.Configuration;
             Initialize();
             _consoleThread!.Join();
             _consoleThread = null;
@@ -59,19 +69,15 @@ public static class Server {
     private static void Initialize() {
         NetPeerConfiguration peerConfig = new(SharedConfig.AppId);
 
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine("Initializing config");
-        Console.ResetColor();
+        logger.Trace("Initializing config");
 
         config = new Config("config.json");
         config.Load();
         config.AddValue("port", new ConfigValue<int>(SharedConfig.Port)).valueChanged += (_, _) => {
-            Console.ResetColor();
-            Console.WriteLine("Port was changed, this requires a server restart to take effect!");
+            logger.Info("Port was changed, this requires a server restart to take effect!");
         };
         config.AddValue("upnp", new ConfigValue<bool>(false)).valueChanged += (_, _) => {
-            Console.ResetColor();
-            Console.WriteLine("UPnP was changed, this requires a server restart to take effect!");
+            logger.Info("UPnP was changed, this requires a server restart to take effect!");
         };
         config.AddValue("maxUsernameLength", new ConfigValue<int>(64));
         config.AddValue("maxDisplayNameLength", new ConfigValue<int>(64));
@@ -82,9 +88,7 @@ public static class Server {
 
         config.GetValue<double>("targetTickTime").ForceUpdateValue();
 
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine("Initializing commands");
-        Console.ResetColor();
+        logger.Trace("Initializing commands");
 
         commands = new Commands();
 
@@ -112,9 +116,7 @@ public static class Server {
 
         string port = peerConfig.Port.ToString(CultureInfo.InvariantCulture);
         string upnp = peerConfig.EnableUPnP ? " (UPnP)" : "";
-        Console.ForegroundColor = ConsoleColor.DarkGreen;
-        Console.WriteLine($"Starting server (v{Version}) on port {port}{upnp}");
-        Console.ResetColor();
+        progressLogger.Info($"Starting server (v{Version}) on port {port}{upnp}");
 
         _server.Start();
 
@@ -123,9 +125,7 @@ public static class Server {
         while(_server.Status != NetPeerStatus.Running) { }
         _uptimeStopwatch = Stopwatch.StartNew();
 
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("Server started");
-        Console.ResetColor();
+        successLogger.Info("Server started");
 
         _messageHandler = new MessageHandler {
             server = _server,
@@ -150,9 +150,7 @@ public static class Server {
     }
 
     private static void ServerThread() {
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("Server thread started");
-        Console.ResetColor();
+        successLogger.Info("Server thread started");
 
         TrySendReconnectMessage();
 
@@ -174,9 +172,7 @@ public static class Server {
     }
 
     private static void ConsoleThread() {
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("Console thread started");
-        Console.ResetColor();
+        successLogger.Info("Console thread started");
 
         while(_server.Status == NetPeerStatus.Running) {
             string command = Console.ReadLine();
@@ -198,9 +194,7 @@ public static class Server {
     }
 
     private static void Stop(string reason) {
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($"Stopping server ({reason})");
-        Console.ResetColor();
+        logger.Info($"Stopping server ({reason})");
 
         _uptimeStopwatch.Stop();
         _uptimeStopwatch = null;
@@ -265,8 +259,10 @@ public static class Server {
         catch(Exception ex) { SendChatMessage(null, player, ServerErrorMessage(ex.Message)); }
     }
 
+    private static readonly KeyValuePair<object, object> whisperFalseProperty = new("whisper", false);
     public static void SendChatMessageToAll(Player from, string message) {
-        Console.WriteLine(message);
+        chatLogger.Log(
+            new LogEventInfo(LogLevel.Info, from?.username, message) { Properties = { whisperFalseProperty } });
         NetOutgoingMessage response = _server.CreateMessage();
         response.Write((byte)DataType.ChatMessage);
         response.Write(from?.username);
@@ -274,8 +270,12 @@ public static class Server {
         _server.SendToAll(response, DeliveryMethods.Reliable);
     }
 
+    private static readonly KeyValuePair<object, object> whisperTrueProperty = new("whisper", true);
     public static void SendChatMessage(Player from, Player to, string message) {
-        Console.WriteLine(message);
+        chatLogger.Log(
+            new LogEventInfo(LogLevel.Info, from?.username, message) {
+                Properties = { whisperTrueProperty, { "to", to?.username } }
+            });
         NetOutgoingMessage response = _server.CreateMessage();
         response.Write((byte)DataType.ChatMessage);
         response.Write(from?.username);
@@ -293,9 +293,6 @@ public static class Server {
     public static void LogPlayerAction(Player player, string action) =>
         LogPlayerAction(player.username, action);
 
-    private static void LogPlayerAction(string username, string action) {
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"Player {username} {action}");
-        Console.ResetColor();
-    }
+    private static void LogPlayerAction(string username, string action) =>
+        actionLogger.Log(new LogEventInfo(LogLevel.Info, username, action));
 }

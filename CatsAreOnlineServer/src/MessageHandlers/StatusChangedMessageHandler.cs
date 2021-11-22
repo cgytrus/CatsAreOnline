@@ -8,9 +8,17 @@ using CatsAreOnlineServer.SyncedObjects;
 
 using Lidgren.Network;
 
+using NLog;
+
 namespace CatsAreOnlineServer.MessageHandlers;
 
 public class StatusChangedMessageHandler {
+    private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+    private static readonly Logger successLogger = logger.WithProperty("success", true);
+    private static readonly Logger progressLogger = logger.WithProperty("progress", true);
+    private static readonly Logger progressStartLogger = logger.WithProperty("progressStart", true);
+    private static readonly Logger unhandledLogger = logger.WithProperty("unhandled", true);
+
     public NetServer server { private get; init; }
     public Dictionary<NetConnection, Player> playerRegistry { private get; init; }
     public Dictionary<Guid, SyncedObject> syncedObjectRegistry { private get; init; }
@@ -29,30 +37,18 @@ public class StatusChangedMessageHandler {
         NetConnectionStatus status = (NetConnectionStatus)message.ReadByte();
 
         if(_messages.TryGetValue(status, out Action<NetIncomingMessage> action)) action(message);
-        else {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine(
+        else
+            unhandledLogger.Info(
                 $"[UNHANDLED] {message.MessageType.ToString()} {status.ToString()} {message.ReadString()}");
-            Console.ResetColor();
-        }
     }
 
-    private static void RespondedAwaitingApprovalReceived(NetBuffer message) {
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine(message.ReadString());
-        Console.ResetColor();
-    }
+    private static void RespondedAwaitingApprovalReceived(NetBuffer message) =>
+        progressStartLogger.Info(message.ReadString());
 
-    private static void RespondedConnectReceived(NetBuffer message) {
-        Console.ForegroundColor = ConsoleColor.DarkGreen;
-        Console.WriteLine(message.ReadString());
-        Console.ResetColor();
-    }
+    private static void RespondedConnectReceived(NetBuffer message) => progressLogger.Info(message.ReadString());
 
     private void ConnectedReceived(NetIncomingMessage message) {
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine(message.ReadString());
-        Console.ResetColor();
+        successLogger.Info(message.ReadString());
 
         foreach((NetConnection _, Player player) in playerRegistry) {
             if(player.connection != message.SenderConnection) continue;

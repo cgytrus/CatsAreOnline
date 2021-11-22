@@ -67,7 +67,6 @@ dotnet_style_qualification_for_field=false:suggestion
 dotnet_style_qualification_for_method=false:suggestion
 dotnet_style_qualification_for_property=false:suggestion
 dotnet_style_require_accessibility_modifiers=for_non_interface_members:warning
-dotnet_diagnostic.CA1716.severity = none
 
 # ReSharper properties
 resharper_align_linq_query=true
@@ -153,3 +152,6 @@ resharper_use_deconstruction_highlighting=warning
 resharper_web_config_module_not_resolved_highlighting=warning
 resharper_web_config_type_not_resolved_highlighting=warning
 resharper_web_config_wrong_module_highlighting=warning
+
+[*.csproj]
+indent_size=2
